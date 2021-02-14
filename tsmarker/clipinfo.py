@@ -12,20 +12,15 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)
     clips = GetClips(ptsMap)
     videoInfo = GetInfo(videoPath)
-    #sar = videoInfo['sar']
     videoDuration = videoInfo['duration']
     for i in tqdm(range(len(clips)), desc='Marking clip info'):
         clip = clips[i]
         markerMap[str(clip)]['position'] = clip[0] / videoDuration
         markerMap[str(clip)]['duration'] = clip[1] - clip[0]
-        #_, __, w, h = FindVideoBox(path=videoPath, ss=clip[0], to=clip[1], quiet=True)
-        #markerMap[str(clip)]['aspect_ratio'] = round((w * sar[0]) / (h * sar[1]), 2)
     for i in range(len(clips)):
         clip = clips[i]
         markerMap[str(clip)]['duration_prev'] = 0.0 if i == 0 else markerMap[str(clips[i - 1])]['duration']
         markerMap[str(clip)]['duration_next'] = 0.0 if i == len(clips) - 1 else markerMap[str(clips[i + 1])]['duration']
-        #markerMap[str(clip)]['aspect_ratio_prev'] = 0.0 if i == 0 else markerMap[str(clips[i - 1])]['aspect_ratio']
-        #markerMap[str(clip)]['aspect_ratio_next'] = 0.0 if i == len(clips) - 1 else markerMap[str(clips[i + 1])]['aspect_ratio']
     markerPath = SaveMarkerMap(markerMap, markerPath)
     return markerPath
 
