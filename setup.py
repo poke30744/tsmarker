@@ -15,7 +15,8 @@ setuptools.setup(
     packages=setuptools.find_packages(),
      install_requires=[
         'tsmarker',
-        'sklearn'
+        'sklearn',
+        'opencv-python'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

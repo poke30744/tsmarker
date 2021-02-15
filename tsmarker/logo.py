@@ -1,3 +1,90 @@
+import argparse, tempfile, shutil
+from pathlib import Path
+from tqdm import tqdm
+import numpy as np
+import cv2 as cv
+from PIL import Image
+from tsutils.ffmpeg import ExtractArea
+from tsutils.common import ClipToFilename
+from tscutter.analyze import SplitVideo
+from .common import LoadExistingData, GetClips, SaveMarkerMap
+
+def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
+    videoPath = Path(videoPath)
+    outputPath = videoPath.parent / (videoPath.stem + '_logo.png') if outputPath is None else Path(outputPath)
+    with tempfile.TemporaryDirectory(prefix='logo_pics_') as tmpLogoFolder:
+        ExtractArea(path=videoPath, area=(0.0, 0.0, 1.0, 1.0), folder=tmpLogoFolder, ss=ss, to=to, fps=fps, quiet=quiet)
+        pics = list(Path(tmpLogoFolder).glob('*.bmp'))
+        picSum = None
+        for path in tqdm(pics, desc='Loading pics', total=len(pics), disable=quiet):
+            image = np.array(Image.open(path)).astype(np.float32)
+            picSum = image if picSum is None else (picSum + image)
+    picSum /= len(pics)
+    #print(f'mean: {np.mean(picSum)}, std: {np.std(picSum)}')
+    outputPath.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
+    return outputPath
+
+def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, apertureSize=3):
+    imagePath = Path(imagePath)
+    outputPath = imagePath.with_suffix('.edge.png') if outputPath is None else Path(outputPath)
+    img = cv.imread(str(imagePath), 0)
+    edges = cv.Canny(img, threshold1, threshold2, apertureSize=3)
+    cv.imwrite(str(outputPath), edges)
+    return outputPath
+
 def Mark(videoPath, indexPath, markerPath, quiet=False):
-    assert False # TODO
+    videoPath = Path(videoPath)
+    ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)
+    clips = GetClips(ptsMap)
+    
+    # extract clip logos
+    videoFolder = SplitVideo(videoPath=videoPath)
+    videoLogo = None
+    for clip in tqdm(clips, desc='extracing logo edges'):
+        ss, to = clip[0], clip[1]
+        logoPath = ExtractLogo(
+            videoPath=videoFolder / ClipToFilename(clip),
+            area=[0.0, 0.0, 1.0, 1.0],
+            outputPath=videoFolder / Path(ClipToFilename(clip)).with_suffix('.png'),
+            quiet=True)
+        edgePath = drawEdges(logoPath)
+        img = cv.imread(str(logoPath)) * (to - ss)
+        videoLogo = img if videoLogo is None else (videoLogo + img)
+    videoLogo = videoLogo / (clips[-1][1] - clips[0][0])
+    logoPath = videoFolder / 'video.png'
+    cv.imwrite(str(logoPath), videoLogo)
+    videoEdgePath = drawEdges(logoPath)
+
+    # mark
+    videoEdge = cv.imread(str(videoEdgePath), 0)
+    for clip in clips:
+        edgePath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.edge.png')
+        clipEdge = cv.imread(str(edgePath), 0)
+        andImage = np.bitwise_and(videoEdge, clipEdge)
+        logoScore = np.sum(andImage) / np.sum(videoEdge)
+        markerMap[str(clip)]['logo'] = logoScore
+    
+    # cleanup
+    shutil.rmtree(videoFolder)
+
+    markerPath = SaveMarkerMap(markerMap, markerPath)
     return markerPath
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Logo tools')
+    parser.add_argument('--quiet', '-q', action='store_true', help="don't output to the console")
+    subparsers = parser.add_subparsers(required=True, title='subcommands', dest='command')
+
+    subparser = subparsers.add_parser('logo', help='Extract logo from the video')
+    subparser.add_argument('--input', '-i', required=True, help='input mpegts path')
+    subparser.add_argument('--area', default=[0.0, 0.0, 1.0, 1.0], nargs=4, type=float, help='the area to extract')
+    subparser.add_argument('--ss', type=float, default=0, help='from (seconds)')
+    subparser.add_argument('--to', type=float, default=999999, help='to (seconds)')
+    subparser.add_argument('--fps', default='1/1', help='fps like 1/1')
+    subparser.add_argument('--output', '-o', help='output image path')
+
+    args = parser.parse_args()
+
+    if args.command == 'logo':
+        ExtractLogo(videoPath=args.input, area=args.area, outputPath=args.output, ss=args.ss, to=args.to, fps=args.fps)

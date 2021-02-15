@@ -4,7 +4,7 @@ from PIL import Image
 from tqdm import tqdm
 from pathlib import Path
 import numpy as np
-from tsmarker.common import LoadExistingData, GetClips, SaveMarkerMap
+from .common import LoadExistingData, GetClips, SaveMarkerMap
 from tsutils.ffmpeg import GetInfo, ExtractArea
 from tsutils.encode import FindVideoBox
 

@@ -23,7 +23,8 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
             markerPath =  tsmarker.logo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
         elif method == 'clipinfo':
             markerPath =  tsmarker.clipinfo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
-    markerPath.touch()
+    if markerPath.exists():
+        markerPath.touch()
     return markerPath
 
 def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False):
@@ -82,8 +83,8 @@ if __name__ == "__main__":
     subparser = subparsers.add_parser('mark', help='mark CM clips in the mpegts file')
     subparser.add_argument('--method', required=True, nargs='+', choices=['subtitles', 'logo', 'clipinfo'], help='method to mark CM')
     subparser.add_argument('--input', '-i', required=True, help='input mpegts path')
-    subparser.add_argument('--output', '-o', help='output marker file path (.markermap)')
     subparser.add_argument('--index', help='mpegts index path (.ptsmap)')
+    subparser.add_argument('--marker', help='output marker file path (.markermap)')
 
     subparser = subparsers.add_parser('cut', help='cut CMs from the mpegts file')
     subparser.add_argument('--method', required=True, help='by which method to cut CMs')
@@ -99,7 +100,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == 'mark':
-        MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.output, methods=args.method, quiet=args.quiet)
+        MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.marker, methods=args.method, quiet=args.quiet)
     elif args.command == 'cut':
         CutCMs(videoPath=args.input, indexPath=args.index, markerPath=args.marker, byMethod=args.method, outputFolder=args.output)
     elif args.command == 'groundtruth':
