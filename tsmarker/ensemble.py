@@ -29,7 +29,7 @@ def CreateDataset(folder, csvPath, properties):
     return df
 
 def LoadDataset(csvPath, columnsToExclude=[]):
-    df = pd.read_csv(csvPath)
+    df = pd.read_csv(csvPath).fillna(0)
     columns = list(df.columns)
     columns.remove('Unnamed: 0')
     #columns.remove('subtitles')
