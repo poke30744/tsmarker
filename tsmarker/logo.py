@@ -4,8 +4,8 @@ from tqdm import tqdm
 import numpy as np
 import cv2 as cv
 from PIL import Image
-from tsutils.ffmpeg import ExtractArea
-from tsutils.common import ClipToFilename
+from tsutils.ffmpeg import ExtractArea, GetInfo
+from tsutils.common import ClipToFilename, InvalidTsFormat
 from tscutter.analyze import SplitVideo
 from .common import LoadExistingData, GetClips, SaveMarkerMap
 
@@ -20,7 +20,6 @@ def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=F
             image = np.array(Image.open(path)).astype(np.float32)
             picSum = image if picSum is None else (picSum + image)
     picSum /= len(pics)
-    #print(f'mean: {np.mean(picSum)}, std: {np.std(picSum)}')
     outputPath.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
     return outputPath
@@ -43,11 +42,18 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     videoLogo = None
     for clip in tqdm(clips, desc='extracing logo edges'):
         ss, to = clip[0], clip[1]
-        logoPath = ExtractLogo(
-            videoPath=videoFolder / ClipToFilename(clip),
-            area=[0.0, 0.0, 1.0, 1.0],
-            outputPath=videoFolder / Path(ClipToFilename(clip)).with_suffix('.png'),
-            quiet=True)
+        logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
+        try:
+            ExtractLogo(
+                videoPath=videoFolder / ClipToFilename(clip),
+                area=[0.0, 0.0, 1.0, 1.0],
+                outputPath=logoPath,
+                quiet=True)
+        except InvalidTsFormat:
+            # create a blank PNG as the place holder
+            info = GetInfo(videoPath)
+            img = Image.new("RGB", (info['width'], info['height']), (0, 0, 0))
+            img.save(logoPath, "PNG")
         edgePath = drawEdges(logoPath)
         img = cv.imread(str(logoPath)) * (to - ss)
         videoLogo = img if videoLogo is None else (videoLogo + img)
