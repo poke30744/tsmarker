@@ -19,6 +19,8 @@ def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=F
         for path in tqdm(pics, desc='Loading pics', total=len(pics), disable=quiet):
             image = np.array(Image.open(path)).astype(np.float32)
             picSum = image if picSum is None else (picSum + image)
+        if picSum is None:
+            raise InvalidTsFormat(f'"{videoPath.name}" is invalid!')
     picSum /= len(pics)
     outputPath.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
