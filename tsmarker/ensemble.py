@@ -31,14 +31,17 @@ def CreateDataset(folder, csvPath, properties):
 def LoadDataset(csvPath, columnsToExclude=[]):
     df = pd.read_csv(csvPath).fillna(0)
     columns = list(df.columns)
-    columns.remove('Unnamed: 0')
-    #columns.remove('subtitles')
-    columns.remove('_groundtruth')
-    columns.remove('_clip')
-    columns.remove('_filename')
-    columns.remove('_ensemble')
+    columnsToExclude += [
+        # always exclude below
+        'Unnamed: 0',
+        '_groundtruth',
+        '_clip',
+        '_filename',
+        '_ensemble'
+    ]
     for column in columnsToExclude:
-        columns.remove(column)
+        if column in columns:
+            columns.remove(column)
     data = df[columns].to_numpy()
     target = df['_groundtruth'].to_numpy()
     return { 'data': data, 'target': target, 'columns': columns }
