@@ -7,7 +7,7 @@ from PIL import Image
 from tsutils.ffmpeg import ExtractArea, GetInfo
 from tsutils.common import ClipToFilename, InvalidTsFormat
 from tscutter.analyze import SplitVideo
-from .common import LoadExistingData, GetClips, SaveMarkerMap
+from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips
 
 def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
     videoPath = Path(videoPath)
@@ -41,15 +41,15 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     
     # extract clip logos
     videoFolder = SplitVideo(videoPath=videoPath)
-    videoLogo = None
     for clip in tqdm(clips, desc='extracing logo edges'):
-        ss, to = clip[0], clip[1]
+        clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         try:
             ExtractLogo(
                 videoPath=videoFolder / ClipToFilename(clip),
                 area=[0.0, 0.0, 1.0, 1.0],
                 outputPath=logoPath,
+                to=clipLen if clipLen < 600 else 600, 
                 quiet=True)
         except InvalidTsFormat:
             # create a blank PNG as the place holder
@@ -57,10 +57,19 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
             img = Image.new("RGB", (info['width'], info['height']), (0, 0, 0))
             img.save(logoPath, "PNG")
         edgePath = drawEdges(logoPath)
-        img = cv.imread(str(logoPath)) * (to - ss)
+        img = cv.imread(str(logoPath)) * clipLen
+    
+    # calculate the logo of the entire video
+    videoLogo = None
+    selectedClips, selectedLen = SelectClips(clips)
+    for clip in selectedClips:
+        clipLen = clip[1] - clip[0]
+        logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
+        edgePath = drawEdges(logoPath)
+        img = cv.imread(str(logoPath)) * clipLen
         videoLogo = img if videoLogo is None else (videoLogo + img)
-    videoLogo = videoLogo / (clips[-1][1] - clips[0][0])
-    logoPath = videoFolder / 'video.png'
+    videoLogo /= selectedLen
+    logoPath = videoFolder.parent / (videoPath.stem + '_logo.png')
     cv.imwrite(str(logoPath), videoLogo)
     videoEdgePath = drawEdges(logoPath)
 

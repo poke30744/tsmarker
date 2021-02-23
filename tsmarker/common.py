@@ -23,3 +23,17 @@ def SaveMarkerMap(markerMap, markerPath):
         with markerPath.open('w') as f:
             json.dump(markerMap, f, indent=True)
     return markerPath
+
+def SelectClips(clips, lengthLimit=150, durationLimit=0.5):
+    videoLen = clips[-1][1]
+    selectedClips = []
+    selectedLen = 0
+    for clip in reversed(sorted(clips, key=lambda clip: clip[1] - clip[0])):
+        clipLen = clip[1] - clip[0]
+        if clipLen < 150:
+            break
+        if selectedLen > videoLen / 2:
+            break
+        selectedClips.append(clip)
+        selectedLen += clipLen
+    return selectedClips, selectedLen
