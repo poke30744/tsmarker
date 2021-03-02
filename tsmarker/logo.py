@@ -7,7 +7,7 @@ from PIL import Image
 from tsutils.ffmpeg import ExtractArea, GetInfo
 from tsutils.common import ClipToFilename, InvalidTsFormat
 from tscutter.analyze import SplitVideo
-from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips
+from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips, RemoveBoarder
 
 def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
     videoPath = Path(videoPath)
@@ -31,6 +31,8 @@ def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, aperture
     outputPath = imagePath.with_suffix('.edge.png') if outputPath is None else Path(outputPath)
     img = cv.imread(str(imagePath), 0)
     edges = cv.Canny(img, threshold1, threshold2, apertureSize=3)
+    # To remove board-like edges (like 4:3 picture in 16:9) from logos
+    RemoveBoarder(edges)
     cv.imwrite(str(outputPath), edges)
     return outputPath
 

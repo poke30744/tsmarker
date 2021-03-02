@@ -1,4 +1,5 @@
 import json
+import numpy as np
 
 def GetClips(ptsMap):
     return [ ( float(list(ptsMap.keys())[i]),  float(list(ptsMap.keys())[i + 1]) ) for i in range(len(ptsMap) - 1) ]
@@ -37,3 +38,15 @@ def SelectClips(clips, lengthLimit=150, durationLimit=0.5):
         selectedClips.append(clip)
         selectedLen += clipLen
     return selectedClips, selectedLen
+
+def RemoveBoarder(edges, threshold=0.2):
+    shape = edges.shape
+    threshold *= 255
+    average = np.average(edges, axis=1)
+    for i in range(shape[0]):
+        if average[i] > threshold:
+            edges[i,:] = 0
+    average = np.average(edges, axis=0)
+    for i in range(shape[1]):
+        if average[i] > threshold:
+            edges[:,i] = 0
