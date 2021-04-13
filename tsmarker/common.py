@@ -31,7 +31,7 @@ def SelectClips(clips, lengthLimit=150, durationLimit=0.5):
     selectedLen = 0
     for clip in reversed(sorted(clips, key=lambda clip: clip[1] - clip[0])):
         clipLen = clip[1] - clip[0]
-        if clipLen < 150:
+        if clipLen < lengthLimit:
             break
         if selectedLen > videoLen / 2:
             break

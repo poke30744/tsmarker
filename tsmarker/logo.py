@@ -64,6 +64,10 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     # calculate the logo of the entire video
     videoLogo = None
     selectedClips, selectedLen = SelectClips(clips)
+    if selectedLen == 0:
+        selectedClips, selectedLen = SelectClips(clips, lengthLimit=15)
+    if selectedLen == 0:
+        selectedClips, selectedLen = SelectClips(clips, lengthLimit=0)
     for clip in selectedClips:
         clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
