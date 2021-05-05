@@ -62,15 +62,21 @@ def MarkGroundTruth(clipsFolder, markerPath):
     markerPath = Path(markerPath) if markerPath else clipsFolder.parent / '_metadata' / (clipsFolder.stem + '.ptsmap')
     with markerPath.open() as f:
         markerMap = json.load(f)
+    changed = False
     for clipStr in markerMap:
         clipFilename = ClipToFilename(eval(clipStr))
+        existingGroundtruth = markerMap[clipStr]['_groundtruth'] if '_groundtruth' in markerMap[clipStr] else None
         if (clipsFolder / clipFilename).exists():
-            markerMap[clipStr]['_groundtruth'] = 1.0
+            groundTruth = 1.0
         elif (cmFolder / clipFilename).exists():
-            markerMap[clipStr]['_groundtruth'] = 0.0
+            groundTruth = 0.0
         else:
-            markerMap[clipStr]['_groundtruth'] = 0.5
-    markerPath = SaveMarkerMap(markerMap, markerPath)
+            groundTruth = 0.5
+        if groundTruth != existingGroundtruth:
+            markerMap[clipStr]['_groundtruth'] = groundTruth
+            changed = True
+    if changed:
+        markerPath = SaveMarkerMap(markerMap, markerPath)
     return markerPath
 
 if __name__ == "__main__":
