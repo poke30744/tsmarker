@@ -65,18 +65,25 @@ def MarkGroundTruth(clipsFolder, markerPath):
     changed = False
     for clipStr in markerMap:
         clipFilename = ClipToFilename(eval(clipStr))
-        existingGroundtruth = markerMap[clipStr]['_groundtruth'] if '_groundtruth' in markerMap[clipStr] else None
+        if '_groundtruth' in markerMap[clipStr]:
+            existingGT = markerMap[clipStr]['_groundtruth']
+        else:
+            existingGT = markerMap[clipStr]['_ensemble']
         if (clipsFolder / clipFilename).exists():
             groundTruth = 1.0
         elif (cmFolder / clipFilename).exists():
             groundTruth = 0.0
         else:
             groundTruth = 0.5
-        if groundTruth != existingGroundtruth:
-            markerMap[clipStr]['_groundtruth'] = groundTruth
+        markerMap[clipStr]['_groundtruth'] = groundTruth
+        if groundTruth != existingGT:
             changed = True
-    if changed:
-        markerPath = SaveMarkerMap(markerMap, markerPath)
+    if not changed:
+        oldMarkerPath = markerPath.rename(markerPath.with_suffix('.m1'))
+    markerPath = SaveMarkerMap(markerMap, markerPath)
+    if not changed:
+        shutil.copystat(oldMarkerPath, markerPath)
+        oldMarkerPath.unlink()
     return markerPath
 
 if __name__ == "__main__":
