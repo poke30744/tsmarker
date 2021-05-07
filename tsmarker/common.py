@@ -1,6 +1,8 @@
 import json
 import numpy as np
 
+class GroundTruthError(RuntimeError): ...
+
 def GetClips(ptsMap):
     return [ ( float(list(ptsMap.keys())[i]),  float(list(ptsMap.keys())[i + 1]) ) for i in range(len(ptsMap) - 1) ]
 

@@ -1,6 +1,6 @@
 import argparse, shutil, json, sys
 from pathlib import Path
-from tsmarker.common import LoadExistingData, SaveMarkerMap
+from .common import LoadExistingData, SaveMarkerMap, GroundTruthError
 from tsutils.common import ClipToFilename
 from tscutter.analyze import SplitVideo
 import tsmarker.subtitles
@@ -74,7 +74,7 @@ def MarkGroundTruth(clipsFolder, markerPath):
         elif (cmFolder / clipFilename).exists():
             groundTruth = 0.0
         else:
-            groundTruth = 0.5
+            raise GroundTruthError(f'{clipStr} not exist in {clipsFolder}!')
         markerMap[clipStr]['_groundtruth'] = groundTruth
         if groundTruth != existingGT:
             changed = True

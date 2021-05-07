@@ -21,9 +21,6 @@ def CreateDataset(folder, csvPath, properties):
                     if not k in properties:
                         del data[k]
                 data['_clip'], data['_filename'] = clip, path.name
-                if data['_groundtruth'] == 0.5:
-                    print(path.name)
-                    break
                 df = pd.DataFrame(data, index=[0]) if df is None else df.append(pd.DataFrame(data, index=[len(df)]))
     df.to_csv(csvPath, encoding='utf-8-sig')
     return df
