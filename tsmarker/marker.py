@@ -67,8 +67,10 @@ def MarkGroundTruth(clipsFolder, markerPath):
         clipFilename = ClipToFilename(eval(clipStr))
         if '_groundtruth' in markerMap[clipStr]:
             existingGT = markerMap[clipStr]['_groundtruth']
-        else:
+        elif '_ensemble' in markerMap[clipStr]:
             existingGT = markerMap[clipStr]['_ensemble']
+        else:
+            existingGT = None
         if (clipsFolder / clipFilename).exists():
             groundTruth = 1.0
         elif (cmFolder / clipFilename).exists():
