@@ -23,8 +23,6 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
             markerPath =  tsmarker.logo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
         elif method == 'clipinfo':
             markerPath =  tsmarker.clipinfo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
-    if markerPath.exists():
-        markerPath.touch()
     return markerPath
 
 def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False):

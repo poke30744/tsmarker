@@ -17,14 +17,8 @@ def LoadExistingData(indexPath, markerPath):
     return ptsMap, markerMap
 
 def SaveMarkerMap(markerMap, markerPath):
-    if markerPath.exists():
-        with markerPath.open() as f:
-            existingMarkerMap = json.load(f)
-    else:
-        existingMarkerMap = None
-    if existingMarkerMap != markerMap:
-        with markerPath.open('w') as f:
-            json.dump(markerMap, f, indent=True)
+    with markerPath.open('w') as f:
+        json.dump(markerMap, f, indent=True)
     return markerPath
 
 def SelectClips(clips, lengthLimit=150, durationLimit=0.5):
