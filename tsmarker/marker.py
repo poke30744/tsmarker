@@ -44,16 +44,14 @@ def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False
             programList.append(outputFolder / clipFilename)
     if all([ srcdst[1].exists() for srcdst in cmMoveList ]) and all([ path.exists() for path in programList ]):
         print(f'Skipping cutting CMs for {videoPath.name}', file=sys.stderr)
-        for path in outputFolder.glob('**/*.ts'):
-            shutil.copystat(markerPath, path)
         return outputFolder
 
     SplitVideo(videoPath, indexPath, outputFolder, quiet)
     cmFolder = outputFolder / 'CM'
     cmFolder.mkdir()
     for src, dst in cmMoveList:
-        shutil.copystat(markerPath, src)
         shutil.move(src, dst)
+    markerPath.touch()
     return outputFolder
 
 def MarkGroundTruth(clipsFolder, markerPath):
