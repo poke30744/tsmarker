@@ -62,15 +62,8 @@ def MarkGroundTruth(clipsFolder, markerPath):
     markerPath = Path(markerPath) if markerPath else clipsFolder.parent / '_metadata' / (clipsFolder.stem + '.ptsmap')
     with markerPath.open() as f:
         markerMap = json.load(f)
-    changed = False
     for clipStr in markerMap:
         clipFilename = ClipToFilename(eval(clipStr))
-        if '_groundtruth' in markerMap[clipStr]:
-            existingGT = markerMap[clipStr]['_groundtruth']
-        elif '_ensemble' in markerMap[clipStr]:
-            existingGT = markerMap[clipStr]['_ensemble']
-        else:
-            existingGT = None
         if (clipsFolder / clipFilename).exists():
             groundTruth = 1.0
         elif (cmFolder / clipFilename).exists():
@@ -78,15 +71,11 @@ def MarkGroundTruth(clipsFolder, markerPath):
         else:
             raise GroundTruthError(f'{clipStr} not exist in {clipsFolder}!')
         markerMap[clipStr]['_groundtruth'] = groundTruth
-        if groundTruth != existingGT:
-            changed = True
-    if not changed:
-        oldMarkerPath = markerPath.rename(markerPath.with_suffix('.m1'))
+    clipsFolderModifiedTime = clipsFolder.stat().st_mtime
+    markerModifiedTime = markerPath.stat().st_mtime
+    isReEncodingNeeded = clipsFolderModifiedTime > markerModifiedTime
     markerPath = SaveMarkerMap(markerMap, markerPath)
-    if not changed:
-        shutil.copystat(oldMarkerPath, markerPath)
-        oldMarkerPath.unlink()
-    return markerPath
+    return isReEncodingNeeded
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Python tool to mark CMs in mpegts')
