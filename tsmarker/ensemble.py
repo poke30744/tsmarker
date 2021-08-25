@@ -3,11 +3,14 @@ import argparse, json, pickle
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import logging
 from tqdm import tqdm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
 from tsmarker.common import SaveMarkerMap
+
+logger = logging.getLogger('tsmarker.ensemble')
 
 def CreateDataset(folder, csvPath, properties):
     df = None
@@ -59,7 +62,7 @@ def Train(dataset, random_state=0, test_size=0.3):
             best_score = score
             best_n = n
 
-    print('best n: {}, best score: {}'.format(best_n, best_score))
+    logger.info('best n: {}, best score: {}'.format(best_n, best_score))
     
     clf = AdaBoostClassifier(n_estimators=best_n, random_state=0)
     clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))    
@@ -74,7 +77,7 @@ def Mark(model, markerPath, dryrun=False):
         x = np.array([[ v[col] for col in columns ]])
         v['_ensemble'] = clf.predict(x)[0]
         if dryrun:
-            print(k, clf.predict(x))
+            logger.info(k, clf.predict(x))
     if not dryrun:
         markerPath = SaveMarkerMap(markerMap, markerPath)
         return markerPath

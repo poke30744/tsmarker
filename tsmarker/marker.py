@@ -1,11 +1,14 @@
 import argparse, shutil, json, sys
 from pathlib import Path
+import logging
 from .common import LoadExistingData, SaveMarkerMap, GroundTruthError
 from tsutils.common import ClipToFilename
 from tscutter.analyze import SplitVideo
 import tsmarker.subtitles
 import tsmarker.clipinfo
 import tsmarker.logo
+
+logger = logging.getLogger('tsmarker.marker')
 
 def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
     videoPath = Path(videoPath)
@@ -14,7 +17,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
     indexPath.parent.mkdir(parents=True, exist_ok=True)
     markerPath.parent.mkdir(parents=True, exist_ok=True)
     if markerPath.exists() and markerPath.stat().st_mtime > indexPath.stat().st_mtime:
-        print(f'Skipping marking for {videoPath.name}', file=sys.stderr)
+        logger.warning(f'Skipping marking for {videoPath.name}')
         return markerPath
     for method in methods:
         if method == 'subtitles': 
@@ -41,7 +44,7 @@ def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False
         else:
             programList.append(outputFolder / clipFilename)
     if all([ srcdst[1].exists() for srcdst in cmMoveList ]) and all([ path.exists() for path in programList ]):
-        print(f'Skipping cutting CMs for {videoPath.name}', file=sys.stderr)
+        logger.warning(f'Skipping cutting CMs for {videoPath.name}')
         return outputFolder
 
     SplitVideo(videoPath, indexPath, outputFolder, quiet)
