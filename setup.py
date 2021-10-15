@@ -16,7 +16,8 @@ setuptools.setup(
      install_requires=[
         'tsmarker',
         'sklearn',
-        'opencv-python'
+        'opencv-python',
+        'pandas'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
