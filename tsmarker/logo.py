@@ -1,4 +1,4 @@
-import argparse, tempfile, shutil
+import argparse, tempfile, shutil, os
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
@@ -8,6 +8,31 @@ from tsutils.ffmpeg import ExtractArea, GetInfo
 from tsutils.common import ClipToFilename, InvalidTsFormat
 from tscutter.analyze import SplitVideo
 from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips, RemoveBoarder
+
+# Unicode workaround of Python OpenCV from https://qiita.com/SKYS/items/cbde3775e2143cad7455
+def cv2imread(filename, flags=cv.IMREAD_COLOR, dtype=np.uint8):
+    try:
+        n = np.fromfile(filename, dtype)
+        img = cv.imdecode(n, flags)
+        return img
+    except Exception as e:
+        print(e)
+        return None
+
+def cv2imwrite(filename, img, params=None):
+    try:
+        ext = os.path.splitext(filename)[1]
+        result, n = cv.imencode(ext, img, params)
+
+        if result:
+            with open(filename, mode='w+b') as f:
+                n.tofile(f)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        return False
 
 def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
     videoPath = Path(videoPath)
@@ -29,11 +54,11 @@ def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=F
 def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, apertureSize=3):
     imagePath = Path(imagePath)
     outputPath = imagePath.with_suffix('.edge.png') if outputPath is None else Path(outputPath)
-    img = cv.imread(str(imagePath), 0)
+    img = cv2imread(str(imagePath), 0)
     edges = cv.Canny(img, threshold1, threshold2, apertureSize=3)
     # To remove board-like edges (like 4:3 picture in 16:9) from logos
     RemoveBoarder(edges)
-    cv.imwrite(str(outputPath), edges)
+    cv2imwrite(str(outputPath), edges)
     return outputPath
 
 def Mark(videoPath, indexPath, markerPath, quiet=False):
@@ -59,7 +84,7 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
             img = Image.new("RGB", (info['width'], info['height']), (0, 0, 0))
             img.save(logoPath, "PNG")
         edgePath = drawEdges(logoPath)
-        img = cv.imread(str(logoPath)) * clipLen
+        img = cv2imread(str(logoPath)) * clipLen
     
     # calculate the logo of the entire video
     videoLogo = None
@@ -72,18 +97,18 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
         clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         edgePath = drawEdges(logoPath)
-        img = cv.imread(str(logoPath)) * clipLen
+        img = cv2imread(str(logoPath)) * clipLen
         videoLogo = img if videoLogo is None else (videoLogo + img)
     videoLogo /= selectedLen
     logoPath = videoFolder.parent / (videoPath.stem + '_logo.png')
-    cv.imwrite(str(logoPath), videoLogo)
+    cv2imwrite(str(logoPath), videoLogo)
     videoEdgePath = drawEdges(logoPath)
 
     # mark
-    videoEdge = cv.imread(str(videoEdgePath), 0)
+    videoEdge = cv2imread(str(videoEdgePath), 0)
     for clip in clips:
         edgePath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.edge.png')
-        clipEdge = cv.imread(str(edgePath), 0)
+        clipEdge = cv2imread(str(edgePath), 0)
         andImage = np.bitwise_and(videoEdge, clipEdge)
         logoScore = np.sum(andImage) / np.sum(videoEdge)
         markerMap[str(clip)]['logo'] = logoScore
