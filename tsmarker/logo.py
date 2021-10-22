@@ -51,13 +51,14 @@ def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=F
     Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
     return outputPath
 
-def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, apertureSize=3):
+def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, apertureSize=3, removeBoarder=False):
     imagePath = Path(imagePath)
     outputPath = imagePath.with_suffix('.edge.png') if outputPath is None else Path(outputPath)
     img = cv2imread(str(imagePath), 0)
     edges = cv.Canny(img, threshold1, threshold2, apertureSize=3)
-    # To remove board-like edges (like 4:3 picture in 16:9) from logos
-    RemoveBoarder(edges)
+    if removeBoarder:
+        # To remove boarder-like edges (like 4:3 picture in 16:9) from logos
+        RemoveBoarder(edges)
     cv2imwrite(str(outputPath), edges)
     return outputPath
 
@@ -83,7 +84,7 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
             info = GetInfo(videoPath)
             img = Image.new("RGB", (info['width'], info['height']), (0, 0, 0))
             img.save(logoPath, "PNG")
-        edgePath = drawEdges(logoPath)
+        edgePath = drawEdges(logoPath, removeBoarder=True)
         img = cv2imread(str(logoPath)) * clipLen
     
     # calculate the logo of the entire video
@@ -96,13 +97,13 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     for clip in selectedClips:
         clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
-        edgePath = drawEdges(logoPath)
+        edgePath = drawEdges(logoPath, removeBoarder=True)
         img = cv2imread(str(logoPath)) * clipLen
         videoLogo = img if videoLogo is None else (videoLogo + img)
     videoLogo /= selectedLen
     logoPath = videoFolder.parent / (videoPath.stem + '_logo.png')
     cv2imwrite(str(logoPath), videoLogo)
-    videoEdgePath = drawEdges(logoPath)
+    videoEdgePath = drawEdges(logoPath, removeBoarder=True)
 
     # mark
     videoEdge = cv2imread(str(videoEdgePath), 0)
