@@ -26,6 +26,19 @@
                 "--method", "logo",
                 "-i", "C:/Samples/2021年01月18日19時30分00秒-美少女戦士セーラームーンCrystal #11_trimmed.ts"
             ]
+        },
+        {
+            "name": "marker.py merge",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.marker",
+            "justMyCode": false,
+            "args": [
+                "merge",
+                "-i",
+                "C:/Users/xiaoju/Desktop/workingFolder2/2021年11月07日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#1-10_trimmed.ts",
+                "C:/Users/xiaoju/Desktop/workingFolder2/2021年11月07日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#1-10(1)_trimmed.ts",
+            ]
         }
     ]
 }

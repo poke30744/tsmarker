@@ -1,7 +1,7 @@
 import argparse, shutil, json, sys
 from pathlib import Path
 import logging
-from .common import LoadExistingData, SaveMarkerMap, GroundTruthError
+from .common import LoadExistingData, SaveMarkerMap, GroundTruthError, MergeFiles
 from tsutils.common import ClipToFilename
 from tscutter.analyze import SplitVideo
 import tsmarker.subtitles
@@ -100,6 +100,9 @@ if __name__ == "__main__":
     subparser.add_argument('--input', '-i', required=True, help='the folder contains CM/')
     subparser.add_argument('--output', '-o', help='output marker file path (.markermap)')
 
+    subparser = subparsers.add_parser('merge', help='merge mpegts files together with .ptsmap and .markermap')
+    subparser.add_argument('--input', '-i', required=True, nargs='+', help='mpegts files to merge')
+
     args = parser.parse_args()
 
     if args.command == 'mark':
@@ -108,3 +111,5 @@ if __name__ == "__main__":
         CutCMs(videoPath=args.input, indexPath=args.index, markerPath=args.marker, byMethod=args.method, outputFolder=args.output)
     elif args.command == 'groundtruth':
         MarkGroundTruth(clipsFolder=args.input, markerPath=args.output)
+    elif args.command == 'merge':
+        MergeFiles(files=args.input)
