@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-import argparse, tempfile
-from PIL import Image
 from tqdm import tqdm
-from pathlib import Path
-import numpy as np
 from .common import LoadExistingData, GetClips, SaveMarkerMap
-from tsutils.ffmpeg import GetInfo, ExtractArea
-from tsutils.encode import FindVideoBox
+from tscutter.ffmpeg import GetInfo
 
 def Mark(videoPath, indexPath, markerPath, quiet=False):
     ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)
@@ -23,19 +17,3 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
         markerMap[str(clip)]['duration_next'] = 0.0 if i == len(clips) - 1 else markerMap[str(clips[i + 1])]['duration']
     markerPath = SaveMarkerMap(markerMap, markerPath)
     return markerPath
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Python tool to retrieve video clip info')
-    parser.add_argument('--input', '-i', required=True, help='input mpegts path')
-    parser.add_argument('--quiet', '-q', action='store_true', help="don't output to the console")
-
-    args = parser.parse_args()
-
-    info = GetInfo(args.input)
-    print(f'info: {info}')
-
-    videoBox = FindVideoBox(args.input)
-    x, y, w, h = videoBox
-    aspectRatio = round((w * info['sar'][0]) / (h * info['sar'][1]), 2)
-    percentage = round(w * h / (info['width'] * info['height']) * 100, 2)
-    print(f'videoBox: {videoBox} ({percentage}%), aspectRatio: {aspectRatio}')

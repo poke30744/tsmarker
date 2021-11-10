@@ -1,13 +1,51 @@
-import argparse, tempfile, shutil, os
+import argparse, tempfile, shutil, os, subprocess
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 import cv2 as cv
 from PIL import Image
-from tsutils.ffmpeg import ExtractArea, GetInfo
-from tsutils.common import ClipToFilename, InvalidTsFormat
+from tscutter.ffmpeg import GetInfo
+from tscutter.common import ClipToFilename, CheckExtenralCommand, TsFileNotFound, InvalidTsFormat
 from tscutter.analyze import SplitVideo
 from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips, RemoveBoarder
+
+def ExtractArea(path, area, folder, ss, to, fps='1/1', quiet=False):
+    CheckExtenralCommand('ffmpeg')
+    path = Path(path)
+    if not path.is_file():
+        raise TsFileNotFound(f'"{path.name}" not found!')
+
+    folder = path.with_suffix('') if folder is None else Path(folder)
+    if folder.is_dir():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+
+    info = GetInfo(path)
+    if info is None:
+        raise InvalidTsFormat(f'"{path.name}" is invalid!')
+    w, h, x, y = int(round(area[2] * info['width'])), int(round(area[3] * info['height'])), int(round(area[0] * info['width'])), int(round(area[1] * info['height']))
+    args = [ 'ffmpeg', '-hide_banner' ]
+    if ss is not None and to is not None:
+        args += [ '-ss', str(ss), '-to', str(to) ]
+    fpsStr = ',fps={}'.format(fps) if fps else ''
+    args += [
+        '-i', path,
+        '-filter:v', 'crop={}:{}:{}:{}{}'.format(w, h, x, y, fpsStr),
+        '{}/out%8d.bmp'.format(folder) ]
+    pipeObj = subprocess.Popen(args, stderr=subprocess.PIPE, universal_newlines='\r', errors='ignore')
+    if to > info['duration']:
+        to = info['duration']
+    with tqdm(total=to - ss, disable=quiet, unit='secs') as pbar:
+        pbar.set_description('Extracting area')
+        for line in pipeObj.stderr:
+            if 'time=' in line:
+                for item in line.split(' '):
+                    if item.startswith('time='):
+                        timeFields = item.replace('time=', '').split(':')
+                        time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60  + float(timeFields[2])
+                        pbar.update(time - pbar.n)
+        pbar.update(to - ss - pbar.n)
+    pipeObj.wait()
 
 # Unicode workaround of Python OpenCV from https://qiita.com/SKYS/items/cbde3775e2143cad7455
 def cv2imread(filename, flags=cv.IMREAD_COLOR, dtype=np.uint8):

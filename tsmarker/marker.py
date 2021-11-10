@@ -2,7 +2,7 @@ import argparse, shutil, json, sys
 from pathlib import Path
 import logging
 from .common import LoadExistingData, SaveMarkerMap, GroundTruthError, MergeFiles
-from tsutils.common import ClipToFilename
+from tscutter.common import ClipToFilename
 from tscutter.analyze import SplitVideo
 import tsmarker.subtitles
 import tsmarker.clipinfo

@@ -8,7 +8,7 @@ from tqdm import tqdm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
-from tsmarker.common import SaveMarkerMap
+from .common import SaveMarkerMap
 
 logger = logging.getLogger('tsmarker.ensemble')
 

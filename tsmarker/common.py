@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import numpy as np
 from tqdm import tqdm
-from tsutils.common import FormatTimestamp
+from tscutter.common import FormatTimestamp
 from .marker import CutCMs
 
 class GroundTruthError(RuntimeError): ...
