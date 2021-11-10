@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 from tqdm import tqdm
 from tscutter.common import FormatTimestamp
-from .marker import CutCMs
 
 class GroundTruthError(RuntimeError): ...
 
@@ -119,7 +118,4 @@ def MergeFiles(files, bufsize=1024*1024):
                         wf.write(data)
                         pbar.update(len(data))
                         data = rf.read(bufsize)
-    
-    # cut CMs
-    CutCMs(videoPath=newTsFile, indexPath=ptsmapMerged, markerPath=markerMapMerged, byMethod='_groundtruth', outputFolder=newTsFile.parent / newTsFile.stem)
                 
