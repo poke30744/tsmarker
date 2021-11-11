@@ -1,6 +1,6 @@
 from tqdm import tqdm
-from .common import LoadExistingData, GetClips, SaveMarkerMap
 from tscutter.ffmpeg import GetInfo
+from .common import LoadExistingData, GetClips, SaveMarkerMap
 
 def Mark(videoPath, indexPath, markerPath, quiet=False):
     ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)

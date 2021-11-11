@@ -1,4 +1,4 @@
-import argparse, shutil, json, sys
+import argparse, shutil, json, subprocess
 from pathlib import Path
 import logging
 from .common import LoadExistingData, SaveMarkerMap, GroundTruthError, MergeFiles
@@ -53,6 +53,10 @@ def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False
     for src, dst in cmMoveList:
         shutil.move(src, dst)
     markerPath.touch()
+    # pre-load thrumbs
+    winThumbsPreloaderPath = Path('C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
+    if winThumbsPreloaderPath.exists():
+        subprocess.call(f'{winThumbsPreloaderPath} -r "{outputFolder}"')
     return outputFolder
 
 def MarkGroundTruth(clipsFolder, markerPath):
