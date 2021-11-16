@@ -24,8 +24,10 @@ pipeline {
         stage('Test') {
             steps {
                 sh 'pip install --extra-index-url https://test.pypi.org/simple/ dist/tsmarker-0.1.$BUILD_NUMBER-py3-none-any.whl'
-                sh 'python -m tsmarker.analyze -h'
-                sh 'python -m tsmarker.audio -h'
+                sh 'python -m tsmarker.ensemble -h'
+                sh 'python -m tsmarker.logo -h'
+                sh 'python -m tsmarker.marker -h'
+                sh 'python -m tsmarker.subtitls -h'
             }
         }
         stage('Deploy') {
