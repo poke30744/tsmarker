@@ -1,4 +1,4 @@
-import json
+import json, os
 from pathlib import Path
 import numpy as np
 from tqdm import tqdm
@@ -57,7 +57,7 @@ def MergeFiles(files, bufsize=1024*1024):
     ptsmapMerged = {}
     markerMapMerged = {}
     for path in files:
-        path = Path(path)
+        path = Path(os.path.expanduser(path))
         ptsmap, markerMap = LoadExistingData(path.parent / '_metadata' / (path.stem + '.ptsmap'), path.parent / '_metadata' / (path.stem + '.markermap'))
         if ptsmapMerged == {} and markerMapMerged == {}:
             ptsmapMerged, markerMapMerged = ptsmap, markerMap
@@ -65,7 +65,6 @@ def MergeFiles(files, bufsize=1024*1024):
             k, v = ptsmapMerged.popitem()
             currentDuration = v['prev_end_pts']
             currentLen = v['prev_end_pos']
-            del ptsmap['0.0']
             # append ptsmap
             for k, v in ptsmap.items():
                 pts_merged = float(k) + currentDuration

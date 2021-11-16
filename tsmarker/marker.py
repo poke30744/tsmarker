@@ -1,4 +1,4 @@
-import argparse, shutil, json, subprocess
+import argparse, shutil, json, subprocess, os
 from pathlib import Path
 import logging
 from .common import LoadExistingData, SaveMarkerMap, GroundTruthError, MergeFiles
@@ -16,9 +16,6 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
     markerPath = Path(markerPath) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
     indexPath.parent.mkdir(parents=True, exist_ok=True)
     markerPath.parent.mkdir(parents=True, exist_ok=True)
-    if markerPath.exists() and markerPath.stat().st_mtime > indexPath.stat().st_mtime:
-        logger.warning(f'Skipping marking for {videoPath.name}')
-        return markerPath
     for method in methods:
         if method == 'subtitles': 
             markerPath =  tsmarker.subtitles.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath)
@@ -29,10 +26,10 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
     return markerPath
 
 def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False):
-    videoPath = Path(videoPath)
-    indexPath = Path(indexPath) if indexPath else  videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
-    markerPath = Path(markerPath) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
-    outputFolder = Path(outputFolder) if outputFolder else videoPath.with_suffix('')
+    videoPath = Path(os.path.expanduser(videoPath))
+    indexPath = Path(os.path.expanduser(indexPath)) if indexPath else  videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
+    markerPath = Path(os.path.expanduser(markerPath)) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
+    outputFolder = Path(os.path.expanduser(outputFolder)) if outputFolder else videoPath.with_suffix('')
     _, markerMap = LoadExistingData(indexPath, markerPath)
     cmFolder = outputFolder / 'CM'
     cmMoveList = []
@@ -43,10 +40,6 @@ def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False
             cmMoveList.append((outputFolder / clipFilename, cmFolder / clipFilename))
         else:
             programList.append(outputFolder / clipFilename)
-    if all([ srcdst[1].exists() for srcdst in cmMoveList ]) and all([ path.exists() for path in programList ]):
-        logger.warning(f'Skipping cutting CMs for {videoPath.name}')
-        return outputFolder
-
     SplitVideo(videoPath, indexPath, outputFolder, quiet)
     cmFolder = outputFolder / 'CM'
     cmFolder.mkdir()
@@ -60,9 +53,9 @@ def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False
     return outputFolder
 
 def MarkGroundTruth(clipsFolder, markerPath):
-    clipsFolder = Path(clipsFolder)
+    clipsFolder = Path(os.path.expanduser(clipsFolder))
     cmFolder = clipsFolder / 'CM'
-    markerPath = Path(markerPath) if markerPath else clipsFolder.parent / '_metadata' / (clipsFolder.stem + '.ptsmap')
+    markerPath = Path(os.path.expanduser(markerPath)) if markerPath else clipsFolder.parent / '_metadata' / (clipsFolder.stem + '.markermap')
     with markerPath.open() as f:
         markerMap = json.load(f)
     for clipStr in markerMap:

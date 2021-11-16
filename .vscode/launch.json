@@ -36,8 +36,31 @@
             "args": [
                 "merge",
                 "-i",
-                "C:/Users/xiaoju/Desktop/workingFolder2/2021年11月07日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#1-10_trimmed.ts",
-                "C:/Users/xiaoju/Desktop/workingFolder2/2021年11月07日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#1-10(1)_trimmed.ts",
+                "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_trimmed.ts",
+                "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20(1)_trimmed.ts",
+            ]
+        },
+        {
+            "name": "marker.py cut",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.marker",
+            "justMyCode": false,
+            "args": [
+                "cut",
+                "--method", "_groundtruth", 
+                "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed.ts"
+            ]
+        }
+        {
+            "name": "marker.py groundtruth",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.marker",
+            "justMyCode": false,
+            "args": [
+                "groundtruth",
+                "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed"
             ]
         }
     ]
