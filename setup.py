@@ -19,7 +19,8 @@ setuptools.setup(
         'tscutter',
         'sklearn',
         'opencv-python',
-        'pandas'
+        'pandas',
+        'pysubs2'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
