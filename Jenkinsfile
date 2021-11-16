@@ -27,7 +27,7 @@ pipeline {
                 sh 'python -m tsmarker.ensemble -h'
                 //sh 'python -m tsmarker.logo -h'
                 //sh 'python -m tsmarker.marker -h'
-                sh 'python -m tsmarker.subtitls -h'
+                sh 'python -m tsmarker.subtitles -h'
             }
         }
         stage('Deploy') {
