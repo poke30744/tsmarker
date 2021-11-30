@@ -77,6 +77,7 @@ pipeline {
         }
         success {
             echo 'success'
+            archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
             emailext subject: "SUCCEEDED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: """Job "${env.JOB_NAME} [${env.BUILD_NUMBER}]" succeeded\nCheck console output at ${env.BUILD_URL}\n""",
                 recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']]
