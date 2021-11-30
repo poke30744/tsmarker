@@ -55,6 +55,7 @@ pipeline {
             }
             steps {
                 unstash(name: 'compiled-results')
+                archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
                 sh 'pip install twine'
                 withCredentials([usernamePassword(credentialsId: '65ddf05a-75ed-43cd-ab7e-5ac1e6af2526', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh 'python -m twine upload -r testpypi dist/* -u $USERNAME -p $PASSWORD'
@@ -77,7 +78,6 @@ pipeline {
         }
         success {
             echo 'success'
-            archiveArtifacts artifacts: 'dist/*.whl', fingerprint: true
             emailext subject: "SUCCEEDED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: """Job "${env.JOB_NAME} [${env.BUILD_NUMBER}]" succeeded\nCheck console output at ${env.BUILD_URL}\n""",
                 recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']]
