@@ -106,7 +106,7 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
     clips = GetClips(ptsMap)
     
     # extract clip logos
-    videoFolder = SplitVideo(videoPath=videoPath)
+    videoFolder = SplitVideo(videoPath=videoPath, indexPath=indexPath)
     for clip in tqdm(clips, desc='extracing logo edges'):
         clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
