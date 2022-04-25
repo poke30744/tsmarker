@@ -51,7 +51,7 @@
                 "--method", "_groundtruth", 
                 "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed.ts"
             ]
-        }
+        },
         {
             "name": "marker.py groundtruth",
             "type": "python",
@@ -61,6 +61,16 @@
             "args": [
                 "groundtruth",
                 "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed"
+            ]
+        },
+        {
+            "name": "subtitles.py",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.subtitles",
+            "justMyCode": false,
+            "args": [
+                "-i", "~/Desktop/workingFolder2/2022年04月24日22時00分00秒-[新]「金田一少年の事件簿」　File01【学園七不思議殺人事件】[解][字][デ].m2ts"
             ]
         }
     ]

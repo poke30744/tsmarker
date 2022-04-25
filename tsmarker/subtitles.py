@@ -7,13 +7,14 @@ from .common import LoadExistingData, GetClips, SaveMarkerMap
 logger = logging.getLogger('tsmarker.subtitles')
 
 def Extract(path):
-    path = Path(path)
+    path = Path(path).expanduser()
     if not path.is_file():
         raise TsFileNotFound(f'"{path.name}" not found!')
-    subtitlesPathes = [ Path(path).with_suffix(ext) for ext in ( '.srt','.ass' ) ]
-    for subtitlePath in subtitlesPathes:
-        if subtitlePath.exists():
-            subtitlePath.unlink()
+    subExts = ( '.srt','.ass' ) if path.suffix == '.ts' else ( f'{path.suffix}.srt',f'{path.suffix}.ass' )
+    subtitlesPathes = [ path.with_suffix(ext) for ext in subExts ]
+    for p in subtitlesPathes:
+        if p.exists():
+            p.unlink()
     retry = 0
     while any([ not path.exists() for path in subtitlesPathes ]) and retry < 2:
         pipeObj = subprocess.Popen(
@@ -22,15 +23,18 @@ def Extract(path):
             creationflags=subprocess.CREATE_NEW_CONSOLE)
         pipeObj.wait()
         retry += 1
-    for subtitlesPath in subtitlesPathes:
-        if subtitlesPath.exists():
-            if subtitlesPath.stat().st_size == 0:
-                subtitlesPath.unlink()
+    availableSubs = []
+    for p in subtitlesPathes:
+        if p.exists():
+            if p.stat().st_size == 0:
+                p.unlink()
             else:
                 # trying to fix syntax issues of Caption2AssC.exe
-                subtitles = pysubs2.load(subtitlesPath, encoding='utf-8')
-                subtitles.save(subtitlesPath)
-    return [ path for path in subtitlesPathes if path.exists() ]
+                subtitles = pysubs2.load(p, encoding='utf-8')
+                subtitles.save(p)
+            if path.suffix != '.ts':
+                availableSubs.append(p.replace(p.with_name(p.name.replace(path.suffix, ''))))
+    return availableSubs
 
 def Overlap(range1, range2):
     return (range1[0] <= range2[0] <= range1[1]) or (range2[0] <= range1[0] <= range2[1])
