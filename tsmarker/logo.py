@@ -76,7 +76,7 @@ def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=F
     videoPath = Path(videoPath)
     outputPath = videoPath.parent / (videoPath.stem + '_logo.png') if outputPath is None else Path(outputPath)
     with tempfile.TemporaryDirectory(prefix='logo_pics_') as tmpLogoFolder:
-        ExtractArea(path=videoPath, area=(0.0, 0.0, 1.0, 1.0), folder=tmpLogoFolder, ss=ss, to=to, fps=fps, quiet=quiet)
+        ExtractArea(path=videoPath, area=area, folder=tmpLogoFolder, ss=ss, to=to, fps=fps, quiet=quiet)
         pics = list(Path(tmpLogoFolder).glob('*.bmp'))
         picSum = None
         for path in tqdm(pics, desc='Loading pics', total=len(pics), disable=quiet):
