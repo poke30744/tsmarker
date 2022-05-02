@@ -17,10 +17,13 @@ def Extract(path):
             p.unlink()
     retry = 0
     while any([ not path.exists() for path in subtitlesPathes ]) and retry < 2:
+        startupinfo = subprocess.STARTUPINFO(wShowWindow=6, dwFlags=subprocess.STARTF_USESHOWWINDOW) if hasattr(subprocess, 'STARTUPINFO') else None
+        creationflags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
         pipeObj = subprocess.Popen(
             f'Captain2AssC.cmd "{path.absolute()}"',
-            startupinfo=subprocess.STARTUPINFO(wShowWindow=6, dwFlags=subprocess.STARTF_USESHOWWINDOW),
-            creationflags=subprocess.CREATE_NEW_CONSOLE)
+            startupinfo=startupinfo,
+            creationflags=creationflags,
+            shell=True)
         pipeObj.wait()
         retry += 1
     availableSubs = []
