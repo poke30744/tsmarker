@@ -4,48 +4,10 @@ from tqdm import tqdm
 import numpy as np
 import cv2 as cv
 from PIL import Image
-from tscutter.ffmpeg import GetInfo
-from tscutter.common import ClipToFilename, CheckExtenralCommand, TsFileNotFound, InvalidTsFormat
+import tscutter.ffmpeg
+from tscutter.common import ClipToFilename, InvalidTsFormat
 from tscutter.analyze import SplitVideo
 from .common import LoadExistingData, GetClips, SaveMarkerMap, SelectClips, RemoveBoarder
-
-def ExtractArea(path, area, folder, ss, to, fps='1/1', quiet=False):
-    CheckExtenralCommand('ffmpeg')
-    path = Path(path)
-    if not path.is_file():
-        raise TsFileNotFound(f'"{path.name}" not found!')
-
-    folder = path.with_suffix('') if folder is None else Path(folder)
-    if folder.is_dir():
-        shutil.rmtree(folder)
-    folder.mkdir(parents=True)
-
-    info = GetInfo(path)
-    if info is None:
-        raise InvalidTsFormat(f'"{path.name}" is invalid!')
-    w, h, x, y = int(round(area[2] * info['width'])), int(round(area[3] * info['height'])), int(round(area[0] * info['width'])), int(round(area[1] * info['height']))
-    args = [ 'ffmpeg', '-hide_banner' ]
-    if ss is not None and to is not None:
-        args += [ '-ss', str(ss), '-to', str(to) ]
-    fpsStr = ',fps={}'.format(fps) if fps else ''
-    args += [
-        '-i', path,
-        '-filter:v', 'crop={}:{}:{}:{}{}'.format(w, h, x, y, fpsStr),
-        '{}/out%8d.bmp'.format(folder) ]
-    pipeObj = subprocess.Popen(args, stderr=subprocess.PIPE, universal_newlines='\r', errors='ignore')
-    if to > info['duration']:
-        to = info['duration']
-    with tqdm(total=to - ss, disable=quiet, unit='secs') as pbar:
-        pbar.set_description('Extracting area')
-        for line in pipeObj.stderr:
-            if 'time=' in line:
-                for item in line.split(' '):
-                    if item.startswith('time='):
-                        timeFields = item.replace('time=', '').split(':')
-                        time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60  + float(timeFields[2])
-                        pbar.update(time - pbar.n)
-        pbar.update(to - ss - pbar.n)
-    pipeObj.wait()
 
 # Unicode workaround of Python OpenCV from https://qiita.com/SKYS/items/cbde3775e2143cad7455
 def cv2imread(filename, flags=cv.IMREAD_COLOR, dtype=np.uint8):
@@ -61,7 +23,6 @@ def cv2imwrite(filename, img, params=None):
     try:
         ext = os.path.splitext(filename)[1]
         result, n = cv.imencode(ext, img, params)
-
         if result:
             with open(filename, mode='w+b') as f:
                 n.tofile(f)
@@ -72,22 +33,53 @@ def cv2imwrite(filename, img, params=None):
         print(e)
         return False
 
-def ExtractLogo(videoPath, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
-    videoPath = Path(videoPath)
-    outputPath = videoPath.parent / (videoPath.stem + '_logo.png') if outputPath is None else Path(outputPath)
-    with tempfile.TemporaryDirectory(prefix='logo_pics_') as tmpLogoFolder:
-        ExtractArea(path=videoPath, area=area, folder=tmpLogoFolder, ss=ss, to=to, fps=fps, quiet=quiet)
-        pics = list(Path(tmpLogoFolder).glob('*.bmp'))
-        picSum = None
-        for path in tqdm(pics, desc='Loading pics', total=len(pics), disable=quiet):
-            image = np.array(Image.open(path)).astype(np.float32)
-            picSum = image if picSum is None else (picSum + image)
-        if picSum is None:
-            raise InvalidTsFormat(f'"{videoPath.name}" is invalid!')
-    picSum /= len(pics)
-    outputPath.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
-    return outputPath
+class InputFile(tscutter.ffmpeg.InputFile):
+    def ExtractArea(self, area, folder, ss, to, fps='1/1', quiet=False):
+        folder = self.path.with_suffix('') if folder is None else Path(folder)
+        if folder.is_dir():
+            shutil.rmtree(folder)
+        folder.mkdir(parents=True)
+
+        info = self.GetInfo()
+        w, h, x, y = int(round(area[2] * info['width'])), int(round(area[3] * info['height'])), int(round(area[0] * info['width'])), int(round(area[1] * info['height']))
+        args = [ 'ffmpeg', '-hide_banner' ]
+        if ss is not None and to is not None:
+            args += [ '-ss', str(ss), '-to', str(to) ]
+        fpsStr = ',fps={}'.format(fps) if fps else ''
+        args += [
+            '-i', self.path,
+            '-filter:v', 'crop={}:{}:{}:{}{}'.format(w, h, x, y, fpsStr),
+            '{}/out%8d.bmp'.format(folder) ]
+        pipeObj = subprocess.Popen(args, stderr=subprocess.PIPE, universal_newlines='\r', errors='ignore')
+        if to > info['duration']:
+            to = info['duration']
+        with tqdm(total=to - ss, disable=quiet, unit='secs') as pbar:
+            pbar.set_description('Extracting area')
+            for line in pipeObj.stderr:
+                if 'time=' in line:
+                    for item in line.split(' '):
+                        if item.startswith('time='):
+                            timeFields = item.replace('time=', '').split(':')
+                            time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60  + float(timeFields[2])
+                            pbar.update(time - pbar.n)
+            pbar.update(to - ss - pbar.n)
+        pipeObj.wait()
+
+    def ExtractLogo(self, area, outputPath, ss=0, to=999999, fps='1/1', quiet=False):
+        outputPath = self.path.parent / (self.path.stem + '_logo.png') if outputPath is None else Path(outputPath)
+        with tempfile.TemporaryDirectory(prefix='logo_pics_') as tmpLogoFolder:
+            self.ExtractArea(area=area, folder=tmpLogoFolder, ss=ss, to=to, fps=fps, quiet=quiet)
+            pics = list(Path(tmpLogoFolder).glob('*.bmp'))
+            picSum = None
+            for path in tqdm(pics, desc='Loading pics', total=len(pics), disable=quiet):
+                image = np.array(Image.open(path)).astype(np.float32)
+                picSum = image if picSum is None else (picSum + image)
+            if picSum is None:
+                raise InvalidTsFormat(f'"{self.path.name}" is invalid!')
+        picSum /= len(pics)
+        outputPath.parent.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(picSum.astype(np.uint8)).save(str(outputPath))
+        return outputPath
 
 def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, apertureSize=3, removeBoarder=False):
     imagePath = Path(imagePath)
@@ -111,15 +103,15 @@ def Mark(videoPath, indexPath, markerPath, quiet=False):
         clipLen = clip[1] - clip[0]
         logoPath = videoFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         try:
-            ExtractLogo(
-                videoPath=videoFolder / ClipToFilename(clip),
+            inputFile = InputFile(videoFolder / ClipToFilename(clip))
+            inputFile.ExtractLogo(
                 area=[0.0, 0.0, 1.0, 1.0],
                 outputPath=logoPath,
                 to=clipLen if clipLen < 600 else 600, 
                 quiet=True)
         except InvalidTsFormat:
             # create a blank PNG as the place holder
-            info = GetInfo(videoPath)
+            info = InputFile(videoPath).GetInfo()
             img = Image.new("RGB", (info['width'], info['height']), (0, 0, 0))
             img.save(logoPath, "PNG")
         edgePath = drawEdges(logoPath, removeBoarder=True)
@@ -174,4 +166,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == 'logo':
-        ExtractLogo(videoPath=args.input, area=args.area, outputPath=args.output, ss=args.ss, to=args.to, fps=args.fps)
+        InputFile(args.input).ExtractLogo(area=args.area, outputPath=args.output, ss=args.ss, to=args.to, fps=args.fps)

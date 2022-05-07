@@ -1,11 +1,11 @@
 from tqdm import tqdm
-from tscutter.ffmpeg import GetInfo
+from tscutter.ffmpeg import InputFile
 from .common import LoadExistingData, GetClips, SaveMarkerMap
 
 def Mark(videoPath, indexPath, markerPath, quiet=False):
     ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)
     clips = GetClips(ptsMap)
-    videoInfo = GetInfo(videoPath)
+    videoInfo = InputFile(videoPath).GetInfo()
     videoDuration = videoInfo['duration']
     for i in tqdm(range(len(clips)), desc='Marking clip info'):
         clip = clips[i]
