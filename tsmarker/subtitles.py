@@ -37,6 +37,8 @@ def Extract(path):
                 subtitles.save(p)
             if path.suffix != '.ts':
                 availableSubs.append(p.replace(p.with_name(p.name.replace(path.suffix, ''))))
+            else:
+                availableSubs.append(p)
     return availableSubs
 
 def Overlap(range1, range2):
