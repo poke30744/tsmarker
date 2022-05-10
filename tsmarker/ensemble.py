@@ -19,6 +19,10 @@ def CreateDataset(folder, csvPath, properties):
     for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap')))):
         with path.open() as f:
             markermap = json.load(f)
+            # skip markermap files without necessary properties
+            propsInMarkermap = set(list(markermap.items())[0][1].keys())
+            if not set(properties).issubset(propsInMarkermap):
+                continue
             for clip, data in markermap.items():
                 for k in list(data.keys()):
                     if not k in properties:
@@ -101,6 +105,8 @@ if __name__ == "__main__":
     subparser.add_argument('--input', '-i', required=True, help='the path of .markermap file')
 
     args = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     if args.command == 'dataset':
         CreateDataset(folder=args.input, csvPath=args.output, properties=args.properties)

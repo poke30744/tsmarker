@@ -72,6 +72,31 @@
             "args": [
                 "-i", "~/Desktop/workingFolder2/2022年04月24日22時00分00秒-[新]「金田一少年の事件簿」　File01【学園七不思議殺人事件】[解][字][デ].m2ts"
             ]
-        }
+        },
+        {
+            "name": "ensemble.py dataset",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.ensemble",
+            "justMyCode": false,
+            "args": [
+                "dataset",
+                "-i", "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4\\ドラマ",
+                "-o", "foo.csv",
+                "-p", "subtitles", "position", "duration", "duration_prev", "duration_next", "logo",
+            ]
+        },
+        {
+            "name": "ensemble.py train",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.ensemble",
+            "justMyCode": false,
+            "args": [
+                "train",
+                "-i", "foo.csv",
+                "-o", "foo.pkl"
+            ]
+        },
     ]
 }
