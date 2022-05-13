@@ -1,12 +1,11 @@
-import argparse, shutil, json, subprocess, os
+import argparse, logging
 from pathlib import Path
-import logging
-from .common import LoadExistingData, SaveMarkerMap, GroundTruthError, MergeFiles
-from tscutter.common import ClipToFilename
-from tscutter.analyze import SplitVideo
-import tsmarker.subtitles
-import tsmarker.clipinfo
-import tsmarker.logo
+from tscutter.common import PtsMap
+from . import subtitles
+from . import clipinfo
+from . import logo
+from .common import MarkerMap
+from . import groundtruth
 
 logger = logging.getLogger('tsmarker.marker')
 
@@ -16,62 +15,15 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
     markerPath = Path(markerPath) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
     indexPath.parent.mkdir(parents=True, exist_ok=True)
     markerPath.parent.mkdir(parents=True, exist_ok=True)
+    ptsMap = PtsMap(indexPath)
     for method in methods:
-        if method == 'subtitles': 
-            markerPath =  tsmarker.subtitles.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath)
+        if method == 'subtitles':
+            subtitles.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
         elif method == 'logo':
-            markerPath =  tsmarker.logo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
+            logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
         elif method == 'clipinfo':
-            markerPath =  tsmarker.clipinfo.Mark(videoPath=videoPath, indexPath=indexPath, markerPath=markerPath, quiet=quiet)
+            clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
     return markerPath
-
-def CutCMs(videoPath, indexPath, markerPath, byMethod, outputFolder, quiet=False):
-    videoPath = Path(os.path.expanduser(videoPath))
-    indexPath = Path(os.path.expanduser(indexPath)) if indexPath else  videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
-    markerPath = Path(os.path.expanduser(markerPath)) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
-    outputFolder = Path(os.path.expanduser(outputFolder)) if outputFolder else videoPath.with_suffix('')
-    _, markerMap = LoadExistingData(indexPath, markerPath)
-    cmFolder = outputFolder / 'CM'
-    cmMoveList = []
-    programList = []
-    for clipStr in markerMap:
-        clipFilename = ClipToFilename(eval(clipStr))
-        if markerMap[clipStr][byMethod] < 0.5:
-            cmMoveList.append((outputFolder / clipFilename, cmFolder / clipFilename))
-        else:
-            programList.append(outputFolder / clipFilename)
-    SplitVideo(videoPath, indexPath, outputFolder, quiet)
-    cmFolder = outputFolder / 'CM'
-    cmFolder.mkdir()
-    for src, dst in cmMoveList:
-        shutil.move(src, dst)
-    markerPath.touch()
-    # pre-load thrumbs
-    winThumbsPreloaderPath = Path('C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
-    if winThumbsPreloaderPath.exists():
-        subprocess.call(f'{winThumbsPreloaderPath} -r "{outputFolder}"')
-    return outputFolder
-
-def MarkGroundTruth(clipsFolder, markerPath):
-    clipsFolder = Path(os.path.expanduser(clipsFolder))
-    cmFolder = clipsFolder / 'CM'
-    markerPath = Path(os.path.expanduser(markerPath)) if markerPath else clipsFolder.parent / '_metadata' / (clipsFolder.stem + '.markermap')
-    with markerPath.open() as f:
-        markerMap = json.load(f)
-    for clipStr in markerMap:
-        clipFilename = ClipToFilename(eval(clipStr))
-        if (clipsFolder / clipFilename).exists():
-            groundTruth = 1.0
-        elif (cmFolder / clipFilename).exists():
-            groundTruth = 0.0
-        else:
-            raise GroundTruthError(f'{clipStr} not exist in {clipsFolder}!')
-        markerMap[clipStr]['_groundtruth'] = groundTruth
-    clipsFolderModifiedTime = clipsFolder.stat().st_mtime
-    markerModifiedTime = markerPath.stat().st_mtime
-    isReEncodingNeeded = clipsFolderModifiedTime > markerModifiedTime
-    markerPath = SaveMarkerMap(markerMap, markerPath)
-    return isReEncodingNeeded
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Python tool to mark CMs in mpegts')
@@ -94,8 +46,10 @@ if __name__ == "__main__":
     subparser.add_argument('--output', '-o', help='output folder path')
 
     subparser = subparsers.add_parser('groundtruth', help='update groundtruth in .markermap after manual adjustment')
-    subparser.add_argument('--input', '-i', required=True, help='the folder contains CM/')
-    subparser.add_argument('--output', '-o', help='output marker file path (.markermap)')
+    subparser.add_argument('--input', '-i', required=True, help='input mpegts path')
+    subparser.add_argument('--index', help='mpegts index path (.ptsmap)')
+    subparser.add_argument('--marker', help='output marker file path (.markermap)')
+    subparser.add_argument('--clips', '-c', help='clips folder')
 
     subparser = subparsers.add_parser('merge', help='merge mpegts files together with .ptsmap and .markermap')
     subparser.add_argument('--input', '-i', required=True, nargs='+', help='mpegts files to merge')
@@ -105,8 +59,15 @@ if __name__ == "__main__":
     if args.command == 'mark':
         MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.marker, methods=args.method, quiet=args.quiet)
     elif args.command == 'cut':
-        CutCMs(videoPath=args.input, indexPath=args.index, markerPath=args.marker, byMethod=args.method, outputFolder=args.output)
+        videoPath = Path(args.input)
+        ptsPath = Path(args.index) if args.index is not None else videoPath.parent / '_metadata' / videoPath.with_suffix('.ptsmap').name
+        markerPath = Path(args.marker) if args.marker is not None else videoPath.parent / '_metadata' / videoPath.with_suffix('.markermap').name
+        outputFolder = Path(args.output) if args.output is not None else videoPath.with_suffix('')
+        MarkerMap(markerPath, PtsMap(ptsPath)).Cut(videoPath=videoPath, byMethod=args.method, outputFolder=outputFolder)
     elif args.command == 'groundtruth':
-        MarkGroundTruth(clipsFolder=args.input, markerPath=args.output)
-    elif args.command == 'merge':
-        MergeFiles(files=args.input)
+        videoPath = Path(args.input)
+        ptsPath = Path(args.index) if args.index else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
+        markerPath = Path(args.marker) if args.marker else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
+        clipsFolder = Path(args.clips) if args.clips else videoPath.with_suffix('')
+        reEncodeNeeded = groundtruth.MarkerMap(markerPath, PtsMap(ptsPath)).MarkAll(clipsFolder)
+        print(f'reEncodeNeeded: {reEncodeNeeded}')

@@ -16,6 +16,18 @@
             ]
         },
         {
+            "name": "marker.py --method subtitles",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.marker",
+            "justMyCode": false,
+            "args": [
+                "mark",
+                "--method", "subtitles",
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
+            ]
+        },
+        {
             "name": "marker.py --method logo",
             "type": "python",
             "request": "launch",
@@ -24,20 +36,19 @@
             "args": [
                 "mark",
                 "--method", "logo",
-                "-i", "C:/Samples/2021年01月18日19時30分00秒-美少女戦士セーラームーンCrystal #11_trimmed.ts"
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
             ]
         },
         {
-            "name": "marker.py merge",
+            "name": "marker.py --method clipinfo",
             "type": "python",
             "request": "launch",
             "module": "tsmarker.marker",
             "justMyCode": false,
             "args": [
-                "merge",
-                "-i",
-                "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_trimmed.ts",
-                "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20(1)_trimmed.ts",
+                "mark",
+                "--method", "clipinfo",
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
             ]
         },
         {
@@ -48,8 +59,8 @@
             "justMyCode": false,
             "args": [
                 "cut",
-                "--method", "_groundtruth", 
-                "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed.ts"
+                "--method", "_ensemble", 
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
             ]
         },
         {
@@ -60,7 +71,7 @@
             "justMyCode": false,
             "args": [
                 "groundtruth",
-                "-i", "~/Desktop/workingFolder2/2021年11月14日00時00分00秒-[字]銀河英雄伝説　本伝（ＢＤ版）【一挙】#11-20_merged_trimmed"
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
             ]
         },
         {
@@ -70,7 +81,7 @@
             "module": "tsmarker.subtitles",
             "justMyCode": false,
             "args": [
-                "-i", "~/Desktop/workingFolder2/2022年04月24日22時00分00秒-[新]「金田一少年の事件簿」　File01【学園七不思議殺人事件】[解][字][デ].m2ts"
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
             ]
         },
         {
@@ -81,7 +92,7 @@
             "justMyCode": false,
             "args": [
                 "dataset",
-                "-i", "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4\\ドラマ",
+                "-i", "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4\\アニメ - HD\\名探偵コナン",
                 "-o", "foo.csv",
                 "-p", "subtitles", "position", "duration", "duration_prev", "duration_next", "logo",
             ]
@@ -96,6 +107,18 @@
                 "train",
                 "-i", "foo.csv",
                 "-o", "foo.pkl"
+            ]
+        },
+        {
+            "name": "ensemble.py predict",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.ensemble",
+            "justMyCode": false,
+            "args": [
+                "predict",
+                "-m", "foo.pkl",
+                "-i", "C:/Samples/_metadata/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.markermap"
             ]
         },
     ]

@@ -1,19 +1,19 @@
+from pathlib import Path
 from tqdm import tqdm
 from tscutter.ffmpeg import InputFile
-from .common import LoadExistingData, GetClips, SaveMarkerMap
+from . import common
 
-def Mark(videoPath, indexPath, markerPath, quiet=False):
-    ptsMap, markerMap = LoadExistingData(indexPath=indexPath, markerPath=markerPath)
-    clips = GetClips(ptsMap)
-    videoInfo = InputFile(videoPath).GetInfo()
-    videoDuration = videoInfo['duration']
-    for i in tqdm(range(len(clips)), desc='Marking clip info'):
-        clip = clips[i]
-        markerMap[str(clip)]['position'] = clip[0] / videoDuration
-        markerMap[str(clip)]['duration'] = clip[1] - clip[0]
-    for i in range(len(clips)):
-        clip = clips[i]
-        markerMap[str(clip)]['duration_prev'] = 0.0 if i == 0 else markerMap[str(clips[i - 1])]['duration']
-        markerMap[str(clip)]['duration_next'] = 0.0 if i == len(clips) - 1 else markerMap[str(clips[i + 1])]['duration']
-    markerPath = SaveMarkerMap(markerMap, markerPath)
-    return markerPath
+class MarkerMap(common.MarkerMap):
+    def MarkAll(self, videoPath: Path, quiet=False) -> None:
+        clips = self.Clips()
+        videoInfo = InputFile(videoPath).GetInfo()
+        videoDuration = videoInfo['duration']
+        for i in tqdm(range(len(clips)), desc='Marking clip info', disable=quiet):
+            clip = clips[i]
+            self.Mark(clip, 'position', clip[0] / videoDuration)
+            self.Mark(clip, 'duration', clip[1] - clip[0])
+        for i in range(len(clips)):
+            clip = clips[i]
+            self.Mark(clip, 'duration_prev', 0.0 if i == 0 else self.Value(clips[i - 1], 'duration'))
+            self.Mark(clip, 'duration_next', 0.0 if i == (len(clips) - 1) else self.Value(clips[i + 1], 'duration'))
+        self.Save()

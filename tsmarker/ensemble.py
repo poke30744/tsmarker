@@ -8,20 +8,23 @@ from tqdm import tqdm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
-from .common import SaveMarkerMap
+from . import common
+from tscutter.common import PtsMap
 
 logger = logging.getLogger('tsmarker.ensemble')
 
-def CreateDataset(folder, csvPath, properties):
+def CreateDataset(folder, csvPath, properties, quiet=False):
     df = None
+    skipped = []
     properties.append('_groundtruth')
     properties.append('_ensemble')
-    for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap')))):
+    for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap'))), disable=quiet):
         with path.open() as f:
             markermap = json.load(f)
             # skip markermap files without necessary properties
             propsInMarkermap = set(list(markermap.items())[0][1].keys())
             if not set(properties).issubset(propsInMarkermap):
+                skipped.append(path)
                 continue
             for clip, data in markermap.items():
                 for k in list(data.keys()):
@@ -29,6 +32,7 @@ def CreateDataset(folder, csvPath, properties):
                         del data[k]
                 data['_clip'], data['_filename'] = clip, path.name
                 df = pd.DataFrame(data, index=[0]) if df is None else df.append(pd.DataFrame(data, index=[len(df)]))
+    logger.info(f'skipped {len(skipped)} files.')
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig')
     return df
@@ -51,7 +55,7 @@ def LoadDataset(csvPath, columnsToExclude=[]):
     target = df['_groundtruth'].to_numpy()
     return { 'data': data, 'target': target, 'columns': columns }
 
-def Train(dataset, random_state=0, test_size=0.3):
+def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     X, y = dataset['data'], dataset['target']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state + 42)
@@ -59,7 +63,7 @@ def Train(dataset, random_state=0, test_size=0.3):
     weight_test = compute_sample_weight(class_weight='balanced', y=y_test)
 
     best_n, best_score = 0, 0
-    for n in tqdm(range(1, 100)):
+    for n in tqdm(range(1, 100), disable=quiet):
         clf = AdaBoostClassifier(n_estimators=n, random_state=random_state)
         clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
         score = clf.score(X_test, y_test, sample_weight=weight_test)
@@ -73,19 +77,16 @@ def Train(dataset, random_state=0, test_size=0.3):
     clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))    
     return clf
 
-def Mark(model, markerPath, dryrun=False):
-    markerPath = Path(markerPath)
-    clf, columns = model
-    with markerPath.open() as f:
-        markerMap = json.load(f)
-    for k, v in markerMap.items():
-        x = np.array([[ v[col] for col in columns ]])
-        v['_ensemble'] = clf.predict(x)[0]
-        if dryrun:
-            logger.info(k, clf.predict(x))
-    if not dryrun:
-        markerPath = SaveMarkerMap(markerMap, markerPath)
-        return markerPath
+class MarkerMap(common.MarkerMap):
+    def MarkAll(self, model: tuple, dryrun=False) -> None:
+        clf, columns = model
+        for k, v in self.data.items():
+            x = np.array([[ v[col] for col in columns ]])
+            v['_ensemble'] = clf.predict(x)[0]
+            if dryrun:
+                logger.info(k, clf.predict(x))
+        if not dryrun:
+            self.Save()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train and predict clips using ensemble models')    
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     subparser = subparsers.add_parser('predict', help='predict using the trained mode')
     subparser.add_argument('--model', '-m', required=True, help='the model path')
     subparser.add_argument('--input', '-i', required=True, help='the path of .markermap file')
+    subparser.add_argument('--dryrun', '-d', action='store_true', help='do not modify the .markermap file')
 
     args = parser.parse_args()
 
@@ -129,4 +131,4 @@ if __name__ == "__main__":
     elif args.command == 'predict':
         with open(args.model, 'rb') as f:
             model = pickle.load(f)
-        Mark(model, args.input, dryrun=True)
+        MarkerMap(Path(args.input), PtsMap(Path(args.input).with_suffix('.ptsmap'))).MarkAll(model, dryrun=args.dryrun)
