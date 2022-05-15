@@ -22,3 +22,8 @@ def test_RemoveBoarder():
 def test_MarkerMap_Properties():
     markerMap = common.MarkerMap(conan_markermap, None)
     assert len(markerMap.Properties()) > 0
+
+def test_MarkerMap_Normalized():
+    markerMap = common.MarkerMap(conan_markermap, None)
+    normalized = markerMap.Normalized()
+    assert len(normalized) > 0

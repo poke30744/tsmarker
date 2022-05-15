@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse, json, pickle
+from cv2 import normalize
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -19,19 +20,17 @@ def CreateDataset(folder, csvPath, properties, quiet=False):
     properties.append('_groundtruth')
     properties.append('_ensemble')
     for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap'))), disable=quiet):
-        with path.open() as f:
-            markermap = json.load(f)
-            # skip markermap files without necessary properties
-            propsInMarkermap = set(list(markermap.items())[0][1].keys())
-            if not set(properties).issubset(propsInMarkermap):
-                skipped.append(path)
-                continue
-            for clip, data in markermap.items():
-                for k in list(data.keys()):
-                    if not k in properties:
-                        del data[k]
-                data['_clip'], data['_filename'] = clip, path.name
-                df = pd.DataFrame(data, index=[0]) if df is None else df.append(pd.DataFrame(data, index=[len(df)]))
+        markerMap = MarkerMap(path, None)
+        if not set(properties).issubset(markerMap.Properties()):
+            skipped.append(path)
+            continue
+        normalized = markerMap.Normalized()
+        for clip, data in normalized.items():
+            for k in list(data.keys()):
+                if not k in properties:
+                    del data[k]
+            data['_clip'], data['_filename'] = clip, path.name
+            df = pd.DataFrame(data, index=[0]) if df is None else df.append(pd.DataFrame(data, index=[len(df)]))    
     logger.info(f'skipped {len(skipped)} files.')
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig')
@@ -80,11 +79,11 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, model: tuple, dryrun=False) -> None:
         clf, columns = model
-        for k, v in self.data.items():
-            x = np.array([[ v[col] for col in columns ]])
-            v['_ensemble'] = clf.predict(x)[0]
+        for clip, data in self.Normalized().items():
+            x = np.array([[ data[col] for col in columns ]])
+            self.Mark(clip, '_ensemble', clf.predict(x)[0])
             if dryrun:
-                logger.info(k, clf.predict(x))
+                logger.info(clip, clf.predict(x))
         if not dryrun:
             self.Save()
 

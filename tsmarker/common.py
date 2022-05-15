@@ -1,5 +1,6 @@
 import json, shutil, subprocess
 from pathlib import Path
+import numpy as np
 from tscutter.common import ClipToFilename, PtsMap
 
 class MarkerMap:    
@@ -48,4 +49,21 @@ class MarkerMap:
         winThumbsPreloaderPath = Path('C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
         if winThumbsPreloaderPath.exists():
             subprocess.call(f'{winThumbsPreloaderPath} -r "{outputFolder}"')
+    
+    def Normalized(self) -> dict:
+        properties = self.Properties()
+        normalized = self.data.copy()
+        for prop in properties:
+            if not prop in ('_ensemble', '_groundtruth', 'position', 'duration', 'duration_prev', 'duration_next'):
+                raw = [ self.data[k][prop] for k in self.data.keys() ]
+                mean = np.mean(raw)
+                std = np.std(raw)
+                for k in normalized.keys():
+                    normalized[k][prop] -= mean
+                    if std != 0:
+                        normalized[k][prop] /= std
+        return normalized
+
+
+
 
