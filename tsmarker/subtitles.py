@@ -45,20 +45,24 @@ def Overlap(range1, range2):
     return (range1[0] <= range2[0] <= range1[1]) or (range2[0] <= range1[0] <= range2[1])
 
 class MarkerMap(common.MarkerMap):
-    def MarkAll(self, videoPath: Path) -> None:
-        subs = Extract(videoPath)
-        for path in subs:
-            if path.with_suffix('.ass'):
-                subtitles = pysubs2.load(path, encoding='utf-8')
-                for clip in self.Clips():
-                    overlap = False
-                    for event in subtitles:
-                        if Overlap((event.start / 1000, event.end / 1000), (clip[0], clip[1])):
-                            overlap = True
-                            break
-                    self.Mark(clip, 'subtitles', 1.0 if overlap else 0.0)
-            path.unlink()
-        if len(subs) == 0:
+    def MarkAll(self, videoPath: Path, assPath: Path=None) -> None:
+        subtitles = None
+        if assPath is not None and assPath.exists():
+            subtitles = pysubs2.load(assPath, encoding='utf-8')
+        else:
+            for p in Extract(videoPath):
+                if p.with_suffix('.ass'):
+                    subtitles = pysubs2.load(p, encoding='utf-8')
+                p.unlink()
+        if subtitles is not None:
+            for clip in self.Clips():
+                overlap = False
+                for event in subtitles:
+                    if Overlap((event.start / 1000, event.end / 1000), (clip[0], clip[1])):
+                        overlap = True
+                        break
+                self.Mark(clip, 'subtitles', 1.0 if overlap else 0.0)
+        else:
             for clip in self.Clips():
                 self.Mark(clip, 'subtitles', 0.5)
         self.Save()
