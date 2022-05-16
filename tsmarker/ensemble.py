@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse, json, pickle
-from cv2 import normalize
 import numpy as np
 import pandas as pd
 from pathlib import Path
