@@ -1,4 +1,4 @@
-import json, shutil, subprocess
+import json, shutil, subprocess, copy
 from pathlib import Path
 import numpy as np
 from tscutter.common import ClipToFilename, PtsMap
@@ -52,7 +52,7 @@ class MarkerMap:
     
     def Normalized(self) -> dict:
         properties = self.Properties()
-        normalized = self.data.copy()
+        normalized = copy.deepcopy(self.data)
         for prop in properties:
             if not prop in ('_ensemble', '_groundtruth', 'position', 'duration', 'duration_prev', 'duration_next'):
                 raw = [ self.data[k][prop] for k in self.data.keys() ]
