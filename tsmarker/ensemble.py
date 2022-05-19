@@ -17,7 +17,6 @@ def CreateDataset(folder, csvPath, properties, quiet=False):
     df = None
     skipped = []
     properties.append('_groundtruth')
-    properties.append('_ensemble')
     for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap'))), disable=quiet):
         markerMap = MarkerMap(path, None)
         if not set(properties).issubset(markerMap.Properties()):
