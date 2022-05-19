@@ -13,7 +13,7 @@ from tscutter.common import PtsMap
 
 logger = logging.getLogger('tsmarker.ensemble')
 
-def CreateDataset(folder, csvPath, properties, quiet=False):
+def CreateDataset(folder, csvPath, properties, normalize=False, quiet=False):
     df = None
     skipped = []
     properties.append('_groundtruth')
@@ -22,8 +22,7 @@ def CreateDataset(folder, csvPath, properties, quiet=False):
         if not set(properties).issubset(markerMap.Properties()):
             skipped.append(path)
             continue
-        normalized = markerMap.Normalized()
-        for clip, data in normalized.items():
+        for clip, data in (markerMap.Normalized() if normalize else markerMap.data).items():
             for k in list(data.keys()):
                 if not k in properties:
                     del data[k]
@@ -75,9 +74,9 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     return clf
 
 class MarkerMap(common.MarkerMap):
-    def MarkAll(self, model: tuple, dryrun=False) -> None:
+    def MarkAll(self, model: tuple, normalize: bool=False, dryrun=False) -> None:
         clf, columns = model
-        for clip, data in self.Normalized().items():
+        for clip, data in (self.Normalized() if normalize else self.data).items():
             x = np.array([[ data[col] for col in columns ]])
             self.Mark(clip, '_ensemble', clf.predict(x)[0])
             if dryrun:
