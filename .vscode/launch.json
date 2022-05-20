@@ -5,17 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "logo.py logo",
-            "type": "python",
-            "request": "launch",
-            "module": "tsmarker.logo",
-            "justMyCode": false,
-            "args": [
-                "logo",
-                "-i", "C:/Samples/2021年01月18日19時30分00秒-美少女戦士セーラームーンCrystal #11_trimmed.ts"
-            ]
-        },
-        {
             "name": "marker.py --method subtitles",
             "type": "python",
             "request": "launch",
@@ -119,6 +108,30 @@
                 "predict",
                 "-m", "foo.pkl",
                 "-i", "C:/Samples/_metadata/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.markermap"
+            ]
+        },
+        {
+            "name": "pipeline logo",
+            "type": "python",
+            "request": "launch",
+            "justMyCode": false,
+            "module": "tsmarker.pipeline",
+            "args": [
+                "logo",
+                "-i",
+                "C:\\Samples\\lupin.ts",
+            ]
+        },
+        {
+            "name": "pipeline cropdetect",
+            "type": "python",
+            "request": "launch",
+            "justMyCode": false,
+            "module": "tsmarker.pipeline",
+            "args": [
+                "cropdetect",
+                "-i",
+                "C:\\Samples\\lupin.ts",
             ]
         },
     ]
