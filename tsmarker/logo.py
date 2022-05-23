@@ -26,7 +26,11 @@ class MarkerMap(common.MarkerMap):
                 else:
                     realClip = clip
                 clipMeanImagePath = Path(tmpFolder) / Path(ClipToFilename(clip)).with_suffix('.png')
-                self.ptsMap.ExtractMeanImagePipe(inFile=videoPath, clip=realClip, outFile=clipMeanImagePath, quiet=True)
+                try:
+                    self.ptsMap.ExtractMeanImagePipe(inFile=videoPath, clip=realClip, outFile=clipMeanImagePath, quiet=True)
+                except InvalidTsFormat:
+                    self.Mark(clip, 'logo', 0)
+                    continue
                 clipEdgePath = drawEdges(clipMeanImagePath)
                 # mark
                 clipEdge = cv2imread(clipEdgePath, 0)

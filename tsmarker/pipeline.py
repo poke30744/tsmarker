@@ -159,7 +159,10 @@ class PtsMap(common.PtsMap):
                         Image.fromarray((self.picSum/self.count).astype(np.uint8)).save(str(path))
                         
                 logoGenerator = LogoGenerator()
-                info = PtsMap.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
+                try:
+                    info = PtsMap.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
+                except IndexError:
+                    raise common.InvalidTsFormat(f'"{self.path.name}" is invalid!')
                 if logoGenerator.count > 0:
                     logoGenerator.Save(outFile)
                 else:
