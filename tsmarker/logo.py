@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 from tscutter.common import ClipToFilename, InvalidTsFormat
 from . import common
-from .pipeline import ExtractLogoPipeline, cv2imread, drawEdges
+from .pipeline import ExtractLogoPipeline, cv2imread, drawEdges, InputFile
 
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, videoPath: Path, logoPath: Path=None, maxTimeToExtract=10, quiet=False) -> None:
@@ -27,7 +27,8 @@ class MarkerMap(common.MarkerMap):
                     realClip = clip
                 clipMeanImagePath = Path(tmpFolder) / Path(ClipToFilename(clip)).with_suffix('.png')
                 try:
-                    self.ptsMap.ExtractMeanImagePipe(inFile=videoPath, clip=realClip, outFile=clipMeanImagePath, quiet=True)
+                    inputFile = InputFile(videoPath)
+                    inputFile.ExtractMeanImagePipe(ptsMap=self.ptsMap, clip=realClip, outFile=clipMeanImagePath, quiet=True)
                 except InvalidTsFormat:
                     self.Mark(clip, 'logo', 0)
                     continue

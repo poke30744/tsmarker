@@ -1,10 +1,10 @@
 import argparse, logging
 from pathlib import Path
+from tscutter.common import PtsMap
 from . import subtitles
 from . import clipinfo
 from . import logo
 from . import groundtruth
-from .pipeline import PtsMap
 from .common import MarkerMap
 
 logger = logging.getLogger('tsmarker.marker')

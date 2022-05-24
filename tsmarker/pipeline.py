@@ -5,7 +5,8 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 import cv2 as cv
-from tscutter import common
+from tscutter import ffmpeg
+from tscutter.common import PtsMap, InvalidTsFormat, ClipToFilename
 
 logger = logging.getLogger('tsmarker.pipeline')
 
@@ -56,9 +57,9 @@ def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, aperture
     cv2imwrite(outputPath, edges)
     return outputPath
 
-class PtsMap(common.PtsMap):
-    def ExtractAreaCmd(inFile, folder, crop=None, ss=None, to=None, fps='1/1'):
-        args = [ 'ffmpeg', '-hide_banner' ]
+class InputFile(ffmpeg.InputFile):
+    def ExtractAreaPipeCmd(self, inFile, folder, crop=None, ss=None, to=None, fps='1/1'):
+        args = [ self.ffmpeg, '-hide_banner' ]
         if ss is not None and to is not None:
             args += [ '-ss', str(ss), '-to', str(to) ]
         args += [ '-i', inFile ]
@@ -128,21 +129,21 @@ class PtsMap(common.PtsMap):
             callback()
 
     def HandleFFmpegLog(lines, pbar=None, callback=None):
-        info = PtsMap.ReadFFmpegInfo(lines)
+        info = InputFile.ReadFFmpegInfo(lines)
         if str(pbar) == 'auto':
             if info['duration'] is not None:
                 with tqdm(total=info['duration'], unit='SECONDs', unit_scale=True) as pbar:
-                    PtsMap.HandleFFmpegProgress(lines, pbar, callback)
+                    InputFile.HandleFFmpegProgress(lines, pbar, callback)
             else:
-                PtsMap.HandleFFmpegProgress(lines, None, callback)
+                InputFile.HandleFFmpegProgress(lines, None, callback)
         else:
-            PtsMap.HandleFFmpegProgress(lines, pbar, callback)
+            InputFile.HandleFFmpegProgress(lines, pbar, callback)
         return info
 
-    def ExtractMeanImagePipe(self, inFile: Path, clip: tuple[float], outFile: Path, quiet: bool=False):
+    def ExtractMeanImagePipe(self, ptsMap: PtsMap, clip: tuple[float], outFile: Path, quiet: bool=False):
         with tempfile.TemporaryDirectory(prefix='LogoPipeline_') as tmpFolder:
-            with subprocess.Popen(PtsMap.ExtractAreaCmd('-', tmpFolder), stdin=subprocess.PIPE, stderr=subprocess.PIPE) as extractAreaP:
-                thread = Thread(target=PtsMap.ExtractClipPipe, args=(self, inFile, clip, extractAreaP.stdin, quiet))
+            with subprocess.Popen(self.ExtractAreaPipeCmd('-', tmpFolder), stdin=subprocess.PIPE, stderr=subprocess.PIPE) as extractAreaP:
+                thread = Thread(target=ptsMap.ExtractClipPipe, args=(self.path, clip, extractAreaP.stdin, quiet))
                 thread.start()
 
                 class LogoGenerator:
@@ -160,9 +161,9 @@ class PtsMap(common.PtsMap):
                         
                 logoGenerator = LogoGenerator()
                 try:
-                    info = PtsMap.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
+                    info = InputFile.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
                 except IndexError:
-                    raise common.InvalidTsFormat(f'"{self.path.name}" is invalid!')
+                    raise InvalidTsFormat(f'"{self.path.name}" is invalid!')
                 if logoGenerator.count > 0:
                     logoGenerator.Save(outFile)
                 else:
@@ -181,13 +182,14 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
         videoLogo = None
         clip = selectedClips[0]
         clipLen = clip[1] - clip[0]
-        logoPath = tmpFolder / Path(common.ClipToFilename(clip)).with_suffix('.png')
+        logoPath = tmpFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         # shorten clip to less than maxTimeToExtract seconds
         if clip[1] - clip[0] > maxTimeToExtract:
             padding = (clip[1] - clip[0] - maxTimeToExtract) / 2
             clip = (padding + clip[0], padding + clip[0] + maxTimeToExtract)
         logger.info(f'Extracting logo from {inFile.name}: {clip} ...')
-        ptsMap.ExtractMeanImagePipe(inFile, clip, logoPath, quiet)
+        inputFile = InputFile(inFile)
+        inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, quiet)
         img = cv2imread(logoPath) * clipLen
         videoLogo = img if videoLogo is None else (videoLogo + img)
         videoLogo /= selectedLen
