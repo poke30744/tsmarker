@@ -162,7 +162,7 @@ class InputFile(ffmpeg.InputFile):
                 logoGenerator = LogoGenerator()
                 try:
                     info = InputFile.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
-                except IndexError:
+                except (IndexError, UnboundLocalError):
                     raise InvalidTsFormat(f'"{self.path.name}" is invalid!')
                 if logoGenerator.count > 0:
                     logoGenerator.Save(outFile)
