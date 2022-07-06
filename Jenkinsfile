@@ -11,7 +11,7 @@ pipeline {
         stage('Build') {
             agent {
                 docker {
-                    label '!windows'
+                    label 'linux'
                     image 'python:3.9.7'
                 }
             }
