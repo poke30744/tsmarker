@@ -22,6 +22,11 @@ setuptools.setup(
         'pandas',
         'pysubs2'
     ],
+    entry_points={
+        'console_scripts': [
+            'tsmarker=tsmarker.marker:main',
+        ],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

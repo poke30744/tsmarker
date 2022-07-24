@@ -25,7 +25,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
     return markerPath
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Python tool to mark CMs in mpegts')
     
     parser.add_argument('--quiet', '-q', action='store_true', help="don't output to the console")
@@ -71,3 +71,6 @@ if __name__ == "__main__":
         clipsFolder = Path(args.clips) if args.clips else videoPath.with_suffix('')
         reEncodeNeeded = groundtruth.MarkerMap(markerPath, PtsMap(ptsPath)).MarkAll(clipsFolder)
         print(f'reEncodeNeeded: {reEncodeNeeded}')
+
+if __name__ == "__main__":
+    main()
