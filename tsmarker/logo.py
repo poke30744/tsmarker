@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+import math
 from tqdm import tqdm
 import numpy as np
 from tscutter.common import ClipToFilename, InvalidTsFormat
@@ -37,6 +38,8 @@ class MarkerMap(common.MarkerMap):
                 clipEdge = cv2imread(clipEdgePath, 0)
                 andImage = np.bitwise_and(logoEdge, clipEdge)
                 logoScore = np.sum(andImage) / np.sum(logoEdge)
+                if math.isnan(logoScore):
+                    logoScore = 0
                 self.Mark(clip, 'logo', logoScore)
         
         self.Save()
