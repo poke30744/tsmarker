@@ -179,9 +179,7 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
     if selectedLen == 0:
         selectedClips, selectedLen = ptsMap.SelectClips(lengthLimit=0)
     with tempfile.TemporaryDirectory(prefix='ExtractLogoPipeline_') as tmpFolder:
-        videoLogo = None
         clip = selectedClips[0]
-        clipLen = clip[1] - clip[0]
         logoPath = tmpFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         # shorten clip to less than maxTimeToExtract seconds
         if clip[1] - clip[0] > maxTimeToExtract:
@@ -190,11 +188,7 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
         logger.info(f'Extracting logo from {inFile.name}: {clip} ...')
         inputFile = InputFile(inFile)
         inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, quiet)
-        img = cv2imread(logoPath) * clipLen
-        videoLogo = img if videoLogo is None else (videoLogo + img)
-        videoLogo /= selectedLen
-        logoPath = Path(tmpFolder) / (inFile.stem + '_logo.png')
-        cv2imwrite(logoPath, videoLogo)
+
         drawEdges(logoPath, outputPath=outFile, removeBoarder=removeBoarder)
 
 def CropDetectPipeline(videoEdgePath, threshold=0.3):
