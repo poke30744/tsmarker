@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from tscutter.common import ClipToFilename
 from . import common
 
 logger = logging.getLogger('tsmarker.groundtruth')
@@ -13,7 +12,7 @@ class MarkerMap(common.MarkerMap):
         cmFolder = clipsFolder / 'CM'
         dirty = False
         for clip in self.Clips():
-            clipFilename = ClipToFilename(clip)
+            clipFilename = self.ClipToFilenameForReview(clip)
             if (clipsFolder / clipFilename).exists():
                 groundTruth = 1.0
             elif (cmFolder / clipFilename).exists():

@@ -27,3 +27,10 @@ def test_MarkerMap_Normalized():
     markerMap = common.MarkerMap(conan_markermap, None)
     normalized = markerMap.Normalized()
     assert len(normalized) > 0
+
+def test_ClipToFilename():
+    ptsMap = PtsMap(conan_ptsmap)
+    markerMap = common.MarkerMap(conan_markermap, ptsMap)
+    clip = markerMap.Clips()[1]
+    name = markerMap.ClipToFilenameForReview(clip)
+    assert len(name) > 0

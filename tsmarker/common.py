@@ -1,5 +1,6 @@
 import json, shutil, subprocess, copy
 from pathlib import Path
+from typing import Tuple
 import numpy as np
 from tscutter.common import ClipToFilename, PtsMap
 
@@ -34,16 +35,17 @@ class MarkerMap:
         cmMoveList = []
         programList = []
         for clip in self.Clips():
-            clipFilename = ClipToFilename(clip)
             if self.data[str(clip)][byMethod] < 0.5:
-                cmMoveList.append((outputFolder / clipFilename, cmFolder / clipFilename))
+                cmMoveList.append(clip)
             else:
-                programList.append(outputFolder / clipFilename)
+                programList.append(clip)
         self.ptsMap.SplitVideo(videoPath=videoPath, outputFolder=outputFolder)
         cmFolder = outputFolder / 'CM'
         cmFolder.mkdir()
-        for src, dst in cmMoveList:
-            shutil.move(src, dst)
+        for clip in cmMoveList:
+            shutil.move(outputFolder / ClipToFilename(clip), cmFolder / self.ClipToFilenameForReview(clip))
+        for clip in programList:
+            shutil.move(outputFolder / ClipToFilename(clip), outputFolder / self.ClipToFilenameForReview(clip))
         
         # pre-load thrumbs
         winThumbsPreloaderPath = Path('C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
@@ -64,6 +66,14 @@ class MarkerMap:
                         normalized[k][prop] /= std
         return normalized
 
-
-
+    def ClipToFilenameForReview(self, clip: Tuple[float, float]) -> str:
+        hasLogo = self.data[str(clip)]["logo"]
+        hasSubtitles = self.data[str(clip)]["subtitles"]
+        name = Path(ClipToFilename(clip))
+        newStem = name.stem
+        if hasLogo > 0.5:
+            newStem += '.L'
+        if hasSubtitles > 0.5:
+            newStem += '.S'
+        return str(name.with_stem(newStem))
 
