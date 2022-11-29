@@ -17,7 +17,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['tests',]),
     install_requires=[
         'tscutter',
-        'sklearn',
+        'scikit-learn',
         'opencv-python',
         'pandas',
         'pysubs2'
