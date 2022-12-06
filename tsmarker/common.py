@@ -30,7 +30,7 @@ class MarkerMap:
     def Clips(self) -> list:
         return self.ptsMap.Clips()
     
-    def Cut(self, videoPath: Path, byMethod: str, outputFolder: Path) -> None:
+    def Cut(self, videoPath: Path, byMethod: str, outputFolder: Path, quiet: bool=False) -> None:
         cmFolder = outputFolder / 'CM'
         cmMoveList = []
         programList = []
@@ -39,7 +39,7 @@ class MarkerMap:
                 cmMoveList.append(clip)
             else:
                 programList.append(clip)
-        self.ptsMap.SplitVideo(videoPath=videoPath, outputFolder=outputFolder)
+        self.ptsMap.SplitVideo(videoPath=videoPath, outputFolder=outputFolder, quiet=quiet)
         cmFolder = outputFolder / 'CM'
         cmFolder.mkdir()
         for clip in cmMoveList:
