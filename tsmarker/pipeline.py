@@ -82,7 +82,7 @@ class InputFile(ffmpeg.InputFile):
                 if durationFields[0] != 'N/A':
                     duration = float(durationFields[0]) * 3600 + float(durationFields[1]) * 60  + float(durationFields[2])
             if 'Stream #' in line:
-                if 'Video:' in line:
+                if 'Video:' in line and not ('352x240' in line):
                     for item in re.findall(r'\d+x\d+', line):
                         sizeFields = item.split('x')
                         if sizeFields[0] != '0' and sizeFields[1] != '0':
