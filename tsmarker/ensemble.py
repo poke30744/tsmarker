@@ -17,7 +17,12 @@ def CreateDataset(folder, csvPath, properties, normalize=False, quiet=False):
     df = None
     skipped = []
     properties.append('_groundtruth')
-    for path in tqdm(sorted(list(Path(folder).glob('**/*.markermap'))), disable=quiet):
+
+    allFiles = sorted(list(Path(folder).glob('**/*.markermap')), key=lambda x: x.stat().st_ctime)
+    if len(allFiles) > 20:
+        allFiles = allFiles[-20:]
+
+    for path in tqdm(allFiles, disable=quiet):
         markerMap = MarkerMap(path, None)
         if not set(properties).issubset(markerMap.Properties()):
             skipped.append(path)
