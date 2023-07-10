@@ -1,4 +1,4 @@
-import tempfile, subprocess, io, re, logging, os, argparse
+import tempfile, subprocess, io, logging, os, argparse
 from pathlib import Path
 from threading import Thread
 from tqdm import tqdm
@@ -72,45 +72,6 @@ class InputFile(ffmpeg.InputFile):
             args += [ '-filter:v', ','.join(vFilters) ]
         args += [ f'{folder}/out%8d.bmp' ]
         return args
-    
-    def ReadFFmpegInfo(lines):
-        soundTracks = 0
-        duration = None
-        for line in lines:
-            if 'Duration' in line:
-                durationFields = line.split(',')[0].replace('Duration:', '').strip().split(':')
-                if durationFields[0] != 'N/A':
-                    duration = float(durationFields[0]) * 3600 + float(durationFields[1]) * 60  + float(durationFields[2])
-            if 'Stream #' in line:
-                if 'Video:' in line and not ('352x240' in line):
-                    for item in re.findall(r'\d+x\d+', line):
-                        sizeFields = item.split('x')
-                        if sizeFields[0] != '0' and sizeFields[1] != '0':
-                            width, height = int(sizeFields[0]), int(sizeFields[1])
-                            break
-                    for item in line.split(','):
-                        if ' fps' in item:
-                            fps = float(item.replace(' fps', ''))
-                            break
-                    sar = line.split('SAR ')[1].split(' ')[0].split(':')
-                    sar = int(sar[0]), int(sar[1])
-                    dar = line.split('DAR ')[1].split(' ')[0].split(']')[0].split(':')
-                    dar = int(dar[0]), int(dar[1])
-                    sar = sar
-                    dar = dar
-                elif 'Audio:' in line and 'Hz,' in line:
-                    soundTracks += 1
-            if line.startswith('Output') or 'time=' in line:
-                break
-        return {
-            'duration': duration, 
-            'width': width,
-            'height': height,
-            'fps': fps,
-            'sar': sar,
-            'dar': dar,
-            'soundTracks': soundTracks
-        }
 
     def HandleFFmpegProgress(lines, pbar=None, callback=None):
         for line in lines:
@@ -128,19 +89,18 @@ class InputFile(ffmpeg.InputFile):
         if callback is not None:
             callback()
 
-    def HandleFFmpegLog(lines, pbar=None, callback=None):
-        info = InputFile.ReadFFmpegInfo(lines)
+    def HandleFFmpegLog(info, lines, pbar=None, callback=None) -> None:
         if str(pbar) == 'auto':
-            if info['duration'] is not None:
-                with tqdm(total=info['duration'], unit='SECONDs', unit_scale=True) as pbar:
+            if info.duration is not None:
+                with tqdm(total=info.duration, unit='SECONDs', unit_scale=True) as pbar:
                     InputFile.HandleFFmpegProgress(lines, pbar, callback)
             else:
                 InputFile.HandleFFmpegProgress(lines, None, callback)
         else:
             InputFile.HandleFFmpegProgress(lines, pbar, callback)
-        return info
 
     def ExtractMeanImagePipe(self, ptsMap: PtsMap, clip: tuple[float], outFile: Path, quiet: bool=False):
+        info = self.GetInfo()
         with tempfile.TemporaryDirectory(prefix='LogoPipeline_') as tmpFolder:
             with subprocess.Popen(self.ExtractAreaPipeCmd('-', tmpFolder), stdin=subprocess.PIPE, stderr=subprocess.PIPE) as extractAreaP:
                 thread = Thread(target=ptsMap.ExtractClipPipe, args=(self.path, clip, extractAreaP.stdin, quiet))
@@ -161,13 +121,13 @@ class InputFile(ffmpeg.InputFile):
                         
                 logoGenerator = LogoGenerator()
                 try:
-                    info = InputFile.HandleFFmpegLog(lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
+                    InputFile.HandleFFmpegLog(info=info, lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
                 except (IndexError, UnboundLocalError):
                     raise InvalidTsFormat(f'"{self.path.name}" is invalid!')
                 if logoGenerator.count > 0:
                     logoGenerator.Save(outFile)
                 else:
-                    Image.new("RGB", (info['width'], info['height']), (0, 0, 0)).save(str(outFile))
+                    Image.new("RGB", (info.width, info.height), (0, 0, 0)).save(str(outFile))
 
                 thread.join()
 
