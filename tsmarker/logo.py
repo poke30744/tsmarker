@@ -43,8 +43,10 @@ class MarkerMap(common.MarkerMap):
         
         clipEdgePath = drawEdges(clipMeanImagePath)
         clipEdge = cv2imread(clipEdgePath, 0)
+        if logoEdge.shape != clipEdge.shape:
+            return 0
         andImage = np.bitwise_and(logoEdge, clipEdge)
         logoScore = np.sum(andImage) / np.sum(logoEdge)
         if math.isnan(logoScore):
-            logoScore = 0
+            return 0
         return logoScore
