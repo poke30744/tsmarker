@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import cv2 as cv
 from tscutter import ffmpeg
-from tscutter.common import PtsMap, InvalidTsFormat, ClipToFilename
+from tscutter.common import PtsMap, InvalidTsFormat, ClipToFilename, GetShortPath
 
 logger = logging.getLogger('tsmarker.pipeline')
 
@@ -62,7 +62,7 @@ class InputFile(ffmpeg.InputFile):
         args = [ self.ffmpeg, '-hide_banner' ]
         if ss is not None and to is not None:
             args += [ '-ss', str(ss), '-to', str(to) ]
-        args += [ '-i', inFile ]
+        args += [ '-i', GetShortPath(inFile) ]
         vFilters = []
         if crop is not None:
             vFilters += [ f'crop={crop["w"]}:{crop["h"]}:{crop["x"]}:{crop["y"]}' ]
