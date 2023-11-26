@@ -6,12 +6,11 @@ from . import common
 
 logger = logging.getLogger('tsmarker.subtitles')
 
-def Extract(path) -> list:
+def Extract(path: Path, folder: Path) -> list[Path]:
     path = Path(path).expanduser()
     if not path.is_file():
         raise TsFileNotFound(f'"{path.name}" not found!')
-    subExts = ( '.srt','.ass' ) if path.suffix == '.ts' else ( f'{path.suffix}.srt',f'{path.suffix}.ass' )
-    subtitlesPathes = [ path.with_suffix(ext) for ext in subExts ]
+    subtitlesPathes = [ (folder / path.stem).with_suffix(ext) for ext in ( '.srt','.ass' ) ]
     for p in subtitlesPathes:
         if p.exists():
             p.unlink()
@@ -20,7 +19,7 @@ def Extract(path) -> list:
         startupinfo = subprocess.STARTUPINFO(wShowWindow=6, dwFlags=subprocess.STARTF_USESHOWWINDOW) if hasattr(subprocess, 'STARTUPINFO') else None
         creationflags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
         pipeObj = subprocess.Popen(
-            f'Caption2AssC.cmd "{path.absolute()}"',
+            f'Caption2AssC.cmd "{path.absolute()}" "{folder.absolute() / path.stem}"',
             startupinfo=startupinfo,
             creationflags=creationflags,
             shell=True)
@@ -50,7 +49,7 @@ class MarkerMap(common.MarkerMap):
         if assPath is not None and assPath.exists():
             subtitles = pysubs2.load(assPath, encoding='utf-8')
         else:
-            for p in Extract(videoPath):
+            for p in Extract(videoPath, videoPath.with_suffix("")):
                 if p.with_suffix('.ass'):
                     subtitles = pysubs2.load(p, encoding='utf-8')
                 p.unlink()
