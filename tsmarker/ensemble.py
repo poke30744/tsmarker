@@ -32,7 +32,7 @@ def CreateDataset(folder, csvPath, properties, normalize=False, quiet=False):
                 if not k in properties:
                     del data[k]
             data['_clip'], data['_filename'] = clip, path.name
-            df = pd.DataFrame(data, index=[0]) if df is None else df.append(pd.DataFrame(data, index=[len(df)]))    
+            df = pd.DataFrame(data, index=[0]) if df is None else pd.concat([df, pd.DataFrame(data, index=[len(df)])])
     logger.info(f'skipped {len(skipped)} files.')
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig')
