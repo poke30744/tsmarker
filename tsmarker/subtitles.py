@@ -1,5 +1,6 @@
 import subprocess, argparse, logging
 from pathlib import Path
+import tempfile
 import pysubs2
 from tscutter.common import TsFileNotFound
 from . import common
@@ -46,13 +47,11 @@ def Overlap(range1, range2):
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, videoPath: Path, assPath: Path=None) -> None:
         subtitles = None
-        if assPath is not None and assPath.exists():
-            subtitles = pysubs2.load(assPath, encoding='utf-8')
-        else:
-            for p in Extract(videoPath, videoPath.with_suffix("")):
+        with tempfile.TemporaryDirectory(prefix='ExtractSubtitles_') as tmpFolder:
+            for p in Extract(videoPath, Path(tmpFolder)):
                 if p.with_suffix('.ass'):
                     subtitles = pysubs2.load(p, encoding='utf-8')
-                p.unlink()
+                    break
         if subtitles is not None:
             for clip in self.Clips():
                 overlap = False
