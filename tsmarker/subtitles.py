@@ -2,7 +2,7 @@ import subprocess, argparse, logging
 from pathlib import Path
 import tempfile
 import pysubs2
-from tscutter.common import TsFileNotFound
+from tscutter.common import CopyPartPipe, TsFileNotFound
 from . import common
 
 logger = logging.getLogger('tsmarker.subtitles')
@@ -20,10 +20,13 @@ def Extract(path: Path, folder: Path) -> list[Path]:
         startupinfo = subprocess.STARTUPINFO(wShowWindow=6, dwFlags=subprocess.STARTF_USESHOWWINDOW) if hasattr(subprocess, 'STARTUPINFO') else None
         creationflags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
         pipeObj = subprocess.Popen(
-            f'Caption2AssC.cmd "{path.absolute()}" "{folder.absolute() / path.stem}"',
+            f'Caption2AssC.cmd - "{folder.absolute() / path.stem}"',
+            stdin=subprocess.PIPE,
             startupinfo=startupinfo,
             creationflags=creationflags,
             shell=True)
+        CopyPartPipe(path, pipeObj.stdin, 0, path.stat().st_size)
+        pipeObj.stdin.close()
         pipeObj.wait()
         retry += 1
     availableSubs = []
@@ -73,6 +76,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    files = Extract(args.input)
+    path = Path(args.input)
+    files = Extract(path, path.parent)
     for path in files:
         print(path.name)
