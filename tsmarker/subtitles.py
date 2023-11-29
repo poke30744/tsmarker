@@ -11,16 +11,24 @@ def Extract(path: Path, folder: Path) -> list[Path]:
     path = Path(path).expanduser()
     if not path.is_file():
         raise TsFileNotFound(f'"{path.name}" not found!')
+
     subtitlesPathes = [ (folder / path.stem).with_suffix(ext) for ext in ( '.srt','.ass' ) ]
+
+    # remove existing subtitles files
     for p in subtitlesPathes:
         if p.exists():
             p.unlink()
+    
+    # use a short ASCII name to avoid encoding errors
+    subtitlesStem = 'tsmarker_subtitles'
+
     retry = 0
-    while any([ not path.exists() for path in subtitlesPathes ]) and retry < 2:
+    availableSubs = []
+    while len(availableSubs) == 0 and retry < 2:
         startupinfo = subprocess.STARTUPINFO(wShowWindow=6, dwFlags=subprocess.STARTF_USESHOWWINDOW) if hasattr(subprocess, 'STARTUPINFO') else None
         creationflags = subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
         pipeObj = subprocess.Popen(
-            f'Caption2AssC.cmd - "{folder.absolute() / path.stem}"',
+            f'Caption2AssC.cmd - "{folder.absolute() / subtitlesStem}"',
             stdin=subprocess.PIPE,
             startupinfo=startupinfo,
             creationflags=creationflags,
@@ -28,20 +36,26 @@ def Extract(path: Path, folder: Path) -> list[Path]:
         CopyPartPipe(path, pipeObj.stdin, 0, path.stat().st_size)
         pipeObj.stdin.close()
         pipeObj.wait()
+        
+        # rename back
+        for p in folder.glob('*'):
+            if p.stem == subtitlesStem:
+                p.rename(p.with_stem(path.stem))
+
+        # fix subtitles
+        for p in subtitlesPathes:
+            if p.exists():
+                if p.stat().st_size == 0:
+                    p.unlink()
+                else:
+                    # trying to fix syntax issues of Caption2AssC.exe
+                    subtitles = pysubs2.load(p, encoding='utf-8')
+                    subtitles.save(p)
+                if path.suffix != '.ts':
+                    availableSubs.append(p.replace(p.with_name(p.name.replace(path.suffix, ''))))
+                else:
+                    availableSubs.append(p)
         retry += 1
-    availableSubs = []
-    for p in subtitlesPathes:
-        if p.exists():
-            if p.stat().st_size == 0:
-                p.unlink()
-            else:
-                # trying to fix syntax issues of Caption2AssC.exe
-                subtitles = pysubs2.load(p, encoding='utf-8')
-                subtitles.save(p)
-            if path.suffix != '.ts':
-                availableSubs.append(p.replace(p.with_name(p.name.replace(path.suffix, ''))))
-            else:
-                availableSubs.append(p)
     return availableSubs
 
 def Overlap(range1, range2):
