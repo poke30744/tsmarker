@@ -139,7 +139,7 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
     if selectedLen == 0:
         selectedClips, selectedLen = ptsMap.SelectClips(lengthLimit=0)
     with tempfile.TemporaryDirectory(prefix='ExtractLogoPipeline_') as tmpFolder:
-        clip = selectedClips[0]
+        clip = max(selectedClips, key=lambda clip: clip[1] - clip[0])
         logoPath = tmpFolder / Path(ClipToFilename(clip)).with_suffix('.png')
         # shorten clip to less than maxTimeToExtract seconds
         if clip[1] - clip[0] > maxTimeToExtract:
