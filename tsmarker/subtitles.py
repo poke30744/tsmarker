@@ -33,7 +33,10 @@ def Extract(path: Path, folder: Path) -> list[Path]:
             startupinfo=startupinfo,
             creationflags=creationflags,
             shell=True)
-        CopyPartPipe(path, pipeObj.stdin, 0, path.stat().st_size)
+        try:
+            CopyPartPipe(path, pipeObj.stdin, 0, path.stat().st_size)
+        except BrokenPipeError:
+            pass
         pipeObj.stdin.close()
         pipeObj.wait()
         
