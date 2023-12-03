@@ -41,6 +41,18 @@
             ]
         },
         {
+            "name": "marker.py --method speech",
+            "type": "python",
+            "request": "launch",
+            "module": "tsmarker.marker",
+            "justMyCode": false,
+            "args": [
+                "mark",
+                "--method", "speech",
+                "-i", "C:/Samples/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.ts"
+            ]
+        },
+        {
             "name": "marker.py cut",
             "type": "python",
             "request": "launch",
@@ -132,6 +144,20 @@
                 "cropdetect",
                 "-i",
                 "C:\\Samples\\lupin.ts",
+            ]
+        },
+        {
+            "name": "speech dataset",
+            "type": "python",
+            "request": "launch",
+            "justMyCode": false,
+            "module": "tsmarker.speech",
+            "args": [
+                "dataset",
+                "-i",
+                "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4",
+                "-o",
+                "speech.json",
             ]
         },
     ]

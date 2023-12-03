@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# machine learning data & model files
+speech.json
+speech.keras

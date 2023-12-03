@@ -23,6 +23,9 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
             logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
         elif method == 'clipinfo':
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
+        elif method == 'speech':
+            from . import speech
+            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
     return markerPath
 
 def main():
@@ -33,7 +36,7 @@ def main():
     subparsers = parser.add_subparsers(required=True, title='subcommands', dest='command')
 
     subparser = subparsers.add_parser('mark', help='mark CM clips in the mpegts file')
-    subparser.add_argument('--method', required=True, nargs='+', choices=['subtitles', 'logo', 'clipinfo'], help='method to mark CM')
+    subparser.add_argument('--method', required=True, nargs='+', choices=['subtitles', 'logo', 'clipinfo', 'speech'], help='method to mark CM')
     subparser.add_argument('--input', '-i', required=True, help='input mpegts path')
     subparser.add_argument('--index', help='mpegts index path (.ptsmap)')
     subparser.add_argument('--marker', help='output marker file path (.markermap)')
