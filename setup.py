@@ -20,7 +20,8 @@ setuptools.setup(
         'scikit-learn',
         'opencv-python',
         'pandas',
-        'pysubs2'
+        'pysubs2',
+        'requests',
     ],
     entry_points={
         'console_scripts': [

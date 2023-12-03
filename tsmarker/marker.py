@@ -4,6 +4,7 @@ from tscutter.common import PtsMap
 from . import subtitles
 from . import clipinfo
 from . import logo
+from . import speech
 from . import groundtruth
 from .common import MarkerMap
 
@@ -24,8 +25,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
         elif method == 'clipinfo':
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
         elif method == 'speech':
-            from . import speech
-            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
+            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, 'http://127.0.0.1:5000/api/mark/speech')
     return markerPath
 
 def main():
