@@ -22,6 +22,7 @@ setuptools.setup(
         'pandas',
         'pysubs2',
         'requests',
+        'SpeechRecognition',
     ],
     entry_points={
         'console_scripts': [
