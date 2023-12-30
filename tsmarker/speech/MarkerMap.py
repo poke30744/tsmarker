@@ -15,8 +15,11 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     with tempfile.TemporaryDirectory(prefix='ExtractAudioText_') as tmpFolder:
         inputFile.ExtractStream(output=Path(tmpFolder), ss=clip[0], to=clip[1], toWav=True, videoTracks=[], audioTracks=[0], quiet=True)
         audioFilename = Path(tmpFolder) / 'audio_0.wav'
-        with sr.AudioFile(str(audioFilename)) as source:
-            audio = recognizer.record(source)
+        try:
+            with sr.AudioFile(str(audioFilename)) as source:
+                audio = recognizer.record(source)
+        except ValueError: 
+            return ''
     try:
         text = recognizer.recognize_google(audio, language='ja-JP')
         return text
