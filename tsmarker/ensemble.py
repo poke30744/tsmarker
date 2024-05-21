@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-import argparse, pickle
+import argparse, pickle, yaml
 import numpy as np
 import pandas as pd
 from pathlib import Path
 import logging
+from datetime import datetime
+import hashlib
 from tqdm import tqdm
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
@@ -13,26 +15,78 @@ from tscutter.common import PtsMap
 
 logger = logging.getLogger('tsmarker.ensemble')
 
-def CreateDataset(folder, csvPath, properties, normalize=False, quiet=False):
+def LoadDescFeatures(path: Path) -> dict[str, float]:
+    desc = None
+    with path.open(encoding='utf-8') as f:
+        desc = yaml.safe_load(f)
+    if desc is None:
+        return None
+    serviceId = desc['serviceId']
+    startAt = datetime.fromtimestamp(desc['startAt'] / 1000)
+    start_hour = startAt.hour
+    start_weekday = startAt.weekday()
+    genres_lv1 = desc['genres'][0]['lv1']
+    genres_lv2 = desc['genres'][0]['lv2']
+    genres_un1 = desc['genres'][0]['un1']
+    genres_un2 = desc['genres'][0]['un2']
+    folder_hash = int.from_bytes(hashlib.sha256(path.parent.stem.encode()).digest()[:4], 'little')
+    name_hash = int.from_bytes(hashlib.sha256(path.stem.encode()).digest()[:4], 'little')
+    return {
+        'serviceId': serviceId,
+        'start_hour': start_hour,
+        'start_weekday': start_weekday,
+        'genres_lv1': genres_lv1,
+        'genres_lv2': genres_lv2,
+        'genres_un1': genres_un1,
+        'genres_un2': genres_un2,
+        'folder_hash': folder_hash,
+        'name_hash': name_hash
+    }
+
+def LoadFeaturesFromMp4(path: Path, normalize: bool=False) -> pd.DataFrame:
+    # load features from markermap
+    markerMapPath = path.parent / '_metadata' / path.with_suffix('.markermap').name
+    if not markerMapPath.exists():
+        return None
+    markerMap = MarkerMap(markerMapPath, None)
+    # skip older data
+    if len(markerMap.Properties()) < 9:
+        return None
+    # skip data without ground truth
+    if not '_groundtruth' in markerMap.Properties():
+        return None
+    
+    # load featuren from desc (same values for all clips)
+    descPath = path.with_suffix('.yaml')
+    descFeatures = LoadDescFeatures(descPath)
+    
+    df = None
+    for clip, data in (markerMap.Normalized() if normalize else markerMap.data).items():
+        del data['_ensemble']
+        # append desc
+        data.update(descFeatures)
+
+        # append basic info
+        data['_clip'], data['_filename'] = clip, path.stem
+        df = pd.DataFrame(data, index=[0]) if df is None else pd.concat([df, pd.DataFrame(data, index=[len(df)])])
+
+    return df
+    
+def CreateDataset(folder, csvPath, normalize=False, quiet=False):
     df = None
     skipped = []
-    properties.append('_groundtruth')
 
-    allFiles = sorted(list(Path(folder).glob('**/*.markermap')), key=lambda x: x.stat().st_ctime)
-    if len(allFiles) > 20:
-        allFiles = allFiles[-20:]
-
+    allFiles = sorted(list(tqdm(Path(folder).glob('**/*.mp4'), desc='searching *.markermap ...')), key=lambda x: x.stat().st_ctime)
     for path in tqdm(allFiles, disable=quiet):
-        markerMap = MarkerMap(path, None)
-        if not set(properties).issubset(markerMap.Properties()):
+        features = LoadFeaturesFromMp4(path, normalize)
+        if features is None:
             skipped.append(path)
             continue
-        for clip, data in (markerMap.Normalized() if normalize else markerMap.data).items():
-            for k in list(data.keys()):
-                if not k in properties:
-                    del data[k]
-            data['_clip'], data['_filename'] = clip, path.name
-            df = pd.DataFrame(data, index=[0]) if df is None else pd.concat([df, pd.DataFrame(data, index=[len(df)])])
+        df = features if df is None else pd.concat([df, features])
+
+    # reset index
+    df = df.reset_index(drop=True)
+
     logger.info(f'skipped {len(skipped)} files.')
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig')
@@ -80,8 +134,16 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
 
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, model: tuple, normalize: bool=False, dryrun=False) -> None:
+        # load file desc properties
+        videoFolder = self.path.parent.parent
+        videoPath = videoFolder / self.path.with_suffix('.mp4').name
+        descPath = videoFolder / self.path.with_suffix('.yaml').name
+        descFeatures = LoadDescFeatures(descPath)
+
         clf, columns = model
         for clip, data in (self.Normalized() if normalize else self.data).items():
+            # append desc
+            data.update(descFeatures)
             x = np.array([[ data[col] for col in columns ]])
             self.Mark(clip, '_ensemble', clf.predict(x)[0])
             if dryrun:
@@ -96,7 +158,6 @@ if __name__ == "__main__":
     subparser = subparsers.add_parser('dataset', help='create CSV dataset from .markermap files')
     subparser.add_argument('--input', '-i', required=True, help='the folder where to search *.markermap files')
     subparser.add_argument('--output', '-o', required=True, help='output csv path')
-    subparser.add_argument('--properties', '-p', nargs='+', help='properties in .markermap files')
 
     subparser = subparsers.add_parser('train', help='train the model')
     subparser.add_argument('--input', '-i', required=True, help='dataset CSV path')
@@ -112,7 +173,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     if args.command == 'dataset':
-        CreateDataset(folder=args.input, csvPath=args.output, properties=args.properties)
+        CreateDataset(folder=args.input, csvPath=args.output)
         # print summary
         dataset = LoadDataset(csvPath=args.output)
         dataShape, targetShape = dataset['data'].shape, dataset['target'].shape

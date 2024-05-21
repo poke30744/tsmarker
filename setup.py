@@ -23,6 +23,7 @@ setuptools.setup(
         'pysubs2',
         'requests',
         'SpeechRecognition',
+        'PyYAML'
     ],
     entry_points={
         'console_scripts': [
