@@ -106,11 +106,8 @@ def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: boo
         else:
             df = pd.concat([df, pd.DataFrame(features)], ignore_index=True)
 
-    # reset index
-    df = df.reset_index(drop=True)
-
     if df is not None and csvPath is not None:
-        df.to_csv(csvPath, encoding='utf-8-sig')
+        df.to_csv(csvPath, encoding='utf-8-sig', index=False)
         logger.info(f'Updated dataset: {csvPath.absolute()}')
     return df
 
@@ -119,7 +116,6 @@ def LoadDataset(csvPath, columnsToExclude=[]):
     columns = list(df.columns)
     columnsToExclude += [
         # always exclude below
-        'Unnamed: 0',
         '_groundtruth',
         '_clip',
         '_filename',
