@@ -16,15 +16,13 @@ from tscutter.common import PtsMap
 logger = logging.getLogger('tsmarker.ensemble')
 
 def LoadDescFeatures(path: Path) -> dict[str, float]:
-    desc = None
     with path.open(encoding='utf-8') as f:
         desc = yaml.safe_load(f)
-    if desc is None:
-        return None
     serviceId = desc['serviceId']
     startAt = datetime.fromtimestamp(desc['startAt'] / 1000)
     start_hour = startAt.hour
     start_weekday = startAt.weekday()
+    video_duration = desc['duration']
     genres_lv1 = desc['genres'][0]['lv1']
     genres_lv2 = desc['genres'][0]['lv2']
     genres_un1 = desc['genres'][0]['un1']
@@ -35,6 +33,7 @@ def LoadDescFeatures(path: Path) -> dict[str, float]:
         'serviceId': serviceId,
         'start_hour': start_hour,
         'start_weekday': start_weekday,
+        'video_duration': video_duration,
         'genres_lv1': genres_lv1,
         'genres_lv2': genres_lv2,
         'genres_un1': genres_un1,
@@ -43,24 +42,24 @@ def LoadDescFeatures(path: Path) -> dict[str, float]:
         'name_hash': name_hash
     }
 
-def LoadFeaturesFromMp4(path: Path, normalize: bool=False) -> pd.DataFrame:
+def LoadFeaturesFromVideo(path: Path, normalize: bool=False) -> list[dict[str, float]]:
     # load features from markermap
     markerMapPath = path.parent / '_metadata' / path.with_suffix('.markermap').name
     if not markerMapPath.exists():
-        return None
-    markerMap = MarkerMap(markerMapPath, None)
+        return []
+    markerMap = MarkerMap(markerMapPath, None) # type: ignore
     # skip older data
     if len(markerMap.Properties()) < 9:
-        return None
+        return []
     # skip data without ground truth
     if not '_groundtruth' in markerMap.Properties():
-        return None
+        return []
     
     # load featuren from desc (same values for all clips)
     descPath = path.with_suffix('.yaml')
     descFeatures = LoadDescFeatures(descPath)
     
-    df = None
+    result = []
     for clip, data in (markerMap.Normalized() if normalize else markerMap.data).items():
         del data['_ensemble']
         # append desc
@@ -68,32 +67,55 @@ def LoadFeaturesFromMp4(path: Path, normalize: bool=False) -> pd.DataFrame:
 
         # append basic info
         data['_clip'], data['_filename'] = clip, path.stem
-        df = pd.DataFrame(data, index=[0]) if df is None else pd.concat([df, pd.DataFrame(data, index=[len(df)])])
+        result.append(data)
 
-    return df
+    return result
     
-def CreateDataset(folder, csvPath, normalize=False, quiet=False):
-    df = None
-    skipped = []
+def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: bool=False):
+    if csvPath.exists():
+        # load existing csv
+        df = pd.read_csv(csvPath)
+        existingVideoFiles = df['_filename'].unique().tolist()
+    else:
+        df = pd.DataFrame()
+        existingVideoFiles = []
 
-    allFiles = sorted(list(tqdm(Path(folder).glob('**/*.mp4'), desc='searching *.markermap ...')), key=lambda x: x.stat().st_ctime)
-    for path in tqdm(allFiles, disable=quiet):
-        features = LoadFeaturesFromMp4(path, normalize)
-        if features is None:
-            skipped.append(path)
-            continue
-        df = features if df is None else pd.concat([df, features])
+    # find video files
+    videoFiles = []
+    videoFilesPathMap: dict[str, Path] = {}
+    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='searching *.mp4 ...', disable=quiet):
+        videoFile = path.stem.replace('_trimmed', '').replace('_prog', '')
+        videoFiles.append(videoFile)
+        videoFilesPathMap[videoFile] = path
+    logger.info(f'found {len(videoFiles)} video files.')
+
+    # find updated files
+    commonVideoFiles = set(existingVideoFiles) & set(videoFiles)
+    newVideoFiles = set(videoFiles) - commonVideoFiles
+
+    # keep only common files
+    if len(commonVideoFiles) > 0:
+        df = df[df['_filename'].isin(commonVideoFiles)]
+    
+    # load features from new files
+    for videoFile in tqdm(newVideoFiles, desc='loading features from updated files ...', disable=quiet):
+        path = videoFilesPathMap[videoFile]
+        features = LoadFeaturesFromVideo(path, normalize)
+        if len(features) == 0:
+            df = pd.concat([df, pd.DataFrame({"_filename": [videoFile]})], ignore_index=True)
+        else:
+            df = pd.concat([df, pd.DataFrame(features)], ignore_index=True)
 
     # reset index
     df = df.reset_index(drop=True)
 
-    logger.info(f'skipped {len(skipped)} files.')
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig')
+        logger.info(f'Updated dataset: {csvPath.absolute()}')
     return df
 
 def LoadDataset(csvPath, columnsToExclude=[]):
-    df = pd.read_csv(csvPath).fillna(0)
+    df = pd.read_csv(csvPath).dropna()
     columns = list(df.columns)
     columnsToExclude += [
         # always exclude below
@@ -121,7 +143,7 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     for n in tqdm(range(1, 100), disable=quiet):
         clf = AdaBoostClassifier(n_estimators=n, random_state=random_state)
         clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
-        score = clf.score(X_test, y_test, sample_weight=weight_test)
+        score = clf.score(X_test, y_test, sample_weight=weight_test) # type: ignore
         if best_score < score:
             best_score = score
             best_n = n
@@ -173,9 +195,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     if args.command == 'dataset':
-        CreateDataset(folder=args.input, csvPath=args.output)
+        CreateDataset(folder=Path(args.input), csvPath=Path(args.output))
         # print summary
-        dataset = LoadDataset(csvPath=args.output)
+        dataset = LoadDataset(csvPath=Path(args.output))
         dataShape, targetShape = dataset['data'].shape, dataset['target'].shape
         print(f'data shape: {dataShape}, target shape: {targetShape}')
         targetElements = np.unique(dataset['target'], return_counts=True)
@@ -185,11 +207,13 @@ if __name__ == "__main__":
         weightElements = np.unique(sampleWeight, return_counts=True)
         print(f'sample weights: {weightElements[0][0]}: {weightElements[1][0]}, {weightElements[0][1]}: {weightElements[1][1]}')
     elif args.command == 'train':
-        dataset = LoadDataset(csvPath=args.input)
+        dataset = LoadDataset(csvPath=Path(args.input))
         columns = dataset['columns']
         clf = Train(dataset)
-        with open(args.output, 'wb') as f:
+        modelPath = Path(args.output)
+        with modelPath.open('wb') as f:
             pickle.dump((clf, columns), f)
+            logger.info(f'Saved model: {modelPath.absolute()}')
     elif args.command == 'predict':
         with open(args.model, 'rb') as f:
             model = pickle.load(f)
