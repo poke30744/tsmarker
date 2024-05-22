@@ -48,7 +48,7 @@ class MarkerMap:
             shutil.move(outputFolder / ClipToFilename(clip), outputFolder / self.ClipToFilenameForReview(clip))
         
         # pre-load thrumbs
-        winThumbsPreloaderPath = Path('C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
+        winThumbsPreloaderPath = Path(r'C:\Program Files\WinThumbsPreloader\WinThumbsPreloader.exe')
         if winThumbsPreloaderPath.exists():
             subprocess.call(f'{winThumbsPreloaderPath} -r "{outputFolder}"')
     
