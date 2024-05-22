@@ -83,11 +83,11 @@ def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: boo
     # find video files
     videoFiles = []
     videoFilesPathMap: dict[str, Path] = {}
-    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='searching *.mp4 ...', disable=quiet):
+    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='Searching *.mp4 ...', disable=quiet):
         videoFile = path.stem.replace('_trimmed', '').replace('_prog', '')
         videoFiles.append(videoFile)
         videoFilesPathMap[videoFile] = path
-    logger.info(f'found {len(videoFiles)} video files.')
+    logger.info(f'Found {len(videoFiles)} video files.')
 
     # find updated files
     commonVideoFiles = set(existingVideoFiles) & set(videoFiles)
