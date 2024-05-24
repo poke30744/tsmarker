@@ -131,12 +131,12 @@ def LoadDataset(csvPath, columnsToExclude=[]):
 def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     X, y = dataset['data'], dataset['target']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=random_state + 42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
     weight_train = compute_sample_weight(class_weight='balanced', y=y_train)
     weight_test = compute_sample_weight(class_weight='balanced', y=y_test)
 
     best_n, best_score = 0, 0
-    for n in tqdm(range(1, 100), disable=quiet):
+    for n in tqdm(range(1000, 1001), desc='Training ...', disable=quiet):
         clf = AdaBoostClassifier(n_estimators=n, random_state=random_state)
         clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
         score = clf.score(X_test, y_test, sample_weight=weight_test) # type: ignore
@@ -144,9 +144,9 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
             best_score = score
             best_n = n
 
-    logger.info('best n: {}, best score: {}'.format(best_n, best_score))
+    logger.info(f'Best n: {best_n}, Best score: {best_score}')
     
-    clf = AdaBoostClassifier(n_estimators=best_n, random_state=0)
+    clf = AdaBoostClassifier(n_estimators=best_n, random_state=random_state)
     clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))    
     return clf
 
