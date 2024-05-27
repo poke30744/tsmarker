@@ -94,7 +94,7 @@
             "args": [
                 "dataset",
                 "-i", "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4",
-                "-o", "foo.csv"
+                "-o", "dataset.csv"
             ]
         },
         {
@@ -105,8 +105,8 @@
             "justMyCode": false,
             "args": [
                 "train",
-                "-i", "foo.csv",
-                "-o", "foo.pkl"
+                "-i", "dataset.csv",
+                "-o", "ensemble_model.pkl"
             ]
         },
         {
@@ -117,7 +117,7 @@
             "justMyCode": false,
             "args": [
                 "predict",
-                "-m", "foo.pkl",
+                "-m", "ensemble_model.pkl",
                 "-i", "C:/Samples/_metadata/2020年05月23日18時00分00秒-名探偵コナン「小五郎はBARにいる(前編)」[解][字][デ]_HD-1.markermap"
             ]
         },
