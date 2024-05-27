@@ -7,41 +7,45 @@ import pysubs2
 logger = logging.getLogger('tsmarker.dataset')
 
 @lru_cache(maxsize=2)
-def ExtractSubs(assPath: Path):
-    return pysubs2.load(assPath)
+def ExtractSubs(assPath: Path) -> "pysubs2.SSAFile":
+    return pysubs2.load(str(assPath))
 
 def ExtractSubtitlesText(assPath: Path, clip: tuple[float, float]) -> str:
-    result = []
-    for event in ExtractSubs(assPath):
-        start, end = clip[0] * 1000, clip[1] * 1000
-        # if overlapped
-        if event.start < end and start < event.end:
-            text = event.text
-            text = re.sub(r'\{.*?\}', '', text)
-            text = text.replace(r'\N', '')
-            result.append(text)
-    return ' '.join(result)
+    try:
+        result = []
+        for event in ExtractSubs(assPath): # type: ignore
+            start, end = clip[0] * 1000, clip[1] * 1000
+            # if overlapped
+            if event.start < end and start < event.end:
+                text = event.text
+                text = re.sub(r'\{.*?\}', '', text)
+                text = text.replace(r'\N', '')
+                result.append(text)
+        return ' '.join(result)
+    except FileNotFoundError:
+        return ""
+
+def ExtractGenSubtitlesText(assGenPath: Path, clip: tuple[float, float]) -> str:
+    try:
+        with assGenPath.open() as f:
+            assGen = json.load(f)
+        return assGen[str(clip)]
+    except KeyError:
+        return ""
+    except FileNotFoundError:
+        return ""
 
 def CreateDataset(markermapFolder: Path, outputPath: Path, minLength: int=5, durationToExtract: int=15):
     allMarkermapFiles = [p for p in tqdm(markermapFolder.glob('**/*.markermap'), desc='searching *.markermap ...') if p.with_suffix('.ass.original').is_file()]
     logger.info(f'found {len(allMarkermapFiles)} files')
 
-    fileList = []
-    for markermapPath in tqdm(allMarkermapFiles, desc='checking subtitles ...'):
-        with markermapPath.open() as f:
-            markermap = json.load(f)
-            for k,v in markermap.items():
-                if '_groundtruth' in v and 'subtitles' in v and  v['_groundtruth'] == 0.0 and v['subtitles'] == 1.0:
-                    fileList.append(markermapPath)
-                    break
-    logger.info(f'found {len(fileList)} files with CM subtitles')
-
     cmTextList = []
     nonCmTextList = []
-    for markermapPath in tqdm(fileList, desc='extracting cm/non-cm subtitles text ...'):
+    for markermapPath in tqdm(allMarkermapFiles, desc='extracting cm/non-cm subtitles text ...'):
         with markermapPath.open() as f:
             markermap = json.load(f)
             assPath = markermapPath.with_suffix('.ass.original')
+            assGenPath = markermapPath.with_suffix('.assgen')
             for k,v in markermap.items():
                 clip = eval(k)
                 # skip very short clips
@@ -49,8 +53,13 @@ def CreateDataset(markermapFolder: Path, outputPath: Path, minLength: int=5, dur
                     continue
                 # only take first "durationToExtract" (15) seconds
                 if clip[1] - clip[0] > durationToExtract:
-                    clip = (clip[0], clip[0] + durationToExtract)
-                text = ExtractSubtitlesText(assPath, clip)
+                    clip15s = (clip[0], clip[0] + durationToExtract)
+                    text = ExtractSubtitlesText(assPath, clip15s)
+                else:
+                    text = ExtractSubtitlesText(assPath, clip)
+                # extract text from speech recognization
+                if len(text) == 0:
+                    text = ExtractGenSubtitlesText(assGenPath, clip)
                 # skip spaces
                 if text.isspace():
                     continue
