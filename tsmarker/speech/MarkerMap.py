@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import shutil
 import tempfile, requests, json
@@ -8,6 +9,8 @@ from .dataset import ExtractSubtitlesText
 from ..subtitles import Extract
 from tscutter.ffmpeg import InputFile
 from tscutter.common import PtsMap
+
+logger = logging.getLogger('tsmarker.speech')
 
 def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     recognizer = sr.Recognizer()
@@ -52,9 +55,8 @@ class MarkerMap(common.MarkerMap):
     def MarkAll(self, videoPath: Path, apiUrl: str, quiet=False) -> None:
         originalSubtitlesPath = self.path.with_suffix('.ass.original')
         generatedSubtitlesPath = self.path.with_suffix('.assgen')
-        indexPath = self.path.with_suffix('.ptsmap')
         if not originalSubtitlesPath.exists() or not generatedSubtitlesPath.exists():
-            PrepareSubtitles(videoPath, PtsMap(indexPath), quiet=quiet)
+            PrepareSubtitles(videoPath, self.ptsMap, quiet=quiet)
 
         clips = self.Clips()    
         textList = [ ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips ] if originalSubtitlesPath.exists() else [ '' ] * len(clips)
@@ -71,3 +73,17 @@ class MarkerMap(common.MarkerMap):
         for i in range(len(clips)):
             self.Mark(clips[i], 'speech', float(Y[i][0]))
         self.Save()
+
+def ReMarkAll(markermapFolder: Path, apiUrl: str, quiet=False):
+    files = []
+    for markerPath in tqdm(markermapFolder.glob('**/*.markermap'), desc='searching *.markermap ...', disable=quiet):
+        indexPath = markerPath.with_suffix('.ptsmap')
+        originalSubtitlesPath = markerPath.with_suffix('.ass.original')
+        generatedSubtitlesPath = markerPath.with_suffix('.assgen')
+        if indexPath.exists() and originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
+            files.append(markerPath)
+    logger.info(f"Will re-mark {len(files)} files")
+    for markerPath in tqdm(files, desc='re-marking ...', disable=quiet):
+        indexPath = markerPath.with_suffix('.ptsmap')
+        markermap = MarkerMap(markerPath, PtsMap(indexPath))
+        markermap.MarkAll(Path(), apiUrl, quiet=quiet)

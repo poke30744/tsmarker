@@ -159,5 +159,19 @@
                 "speech.json",
             ]
         },
+        {
+            "name": "speech mark",
+            "type": "debugpy",
+            "request": "launch",
+            "justMyCode": false,
+            "module": "tsmarker.speech",
+            "args": [
+                "mark",
+                "-i",
+                "\\\\acepc-gk3\\Seagate 8T\\categorized_mp4",
+                "-u",
+                "http://192.168.1.105:5000/api/mark/speech",
+            ]
+        },
     ]
 }
