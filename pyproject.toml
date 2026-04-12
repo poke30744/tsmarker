@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tsmarker"
+dynamic = ["version"]
+description = "Mark MEPG TS clips by program/CM"
+readme = "README.md"
+authors = [
+    {name = "poke30744", email = "poke30744@gmail.com"}
+]
+license = "MIT"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "tscutter",
+    "scikit-learn",
+    "opencv-python",
+    "pandas",
+    "pysubs2",
+    "requests",
+    "SpeechRecognition",
+    "PyYAML"
+]
+
+[project.scripts]
+tsmarker = "tsmarker.marker:main"
+
+[project.urls]
+Homepage = "https://github.com/poke30744/tsmarker/blob/main/README.md"
+
+[tool.setuptools]
+packages = ["tsmarker", "tsmarker.speech"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "tsmarker.__version__"}
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.uv]
+required-version = ">=0.9.0"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+explicit = true
+
+[tool.uv.sources]
+tscutter = { index = "testpypi" }
