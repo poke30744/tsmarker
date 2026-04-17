@@ -25,7 +25,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
         elif method == 'clipinfo':
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
         elif method == 'speech':
-            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, 'http://127.0.0.1:5000/api/mark/speech')
+            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, '')
     return markerPath
 
 def main():

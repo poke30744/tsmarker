@@ -47,6 +47,15 @@ High-signal, repo-specific guidance for OpenCode agents working in this reposito
 - **Speech recognition** – expects a running HTTP server at `http://127.0.0.1:5000/api/mark/speech` (see `marker.py:28`).
 - **tscutter** – must be installed separately (not part of this repo).
 
+## Environment Configuration
+- **`.env` file support** – LLM speech module supports loading environment variables from `.env` file in project root.
+- Required variables for LLM speech:
+  ```bash
+  OPENAI_API_KEY=your-api-key-here
+  # Optional: OPENAI_API_BASE, OPENAI_MODEL, SPEECH_TEMPERATURE, SPEECH_MAX_TOKENS, OPENAI_TIMEOUT
+  ```
+- Copy `.env.example` to `.env` and fill in your API key.
+
 ## Ignored Artifacts
 - `dataset.csv`, `ensemble_model.pkl`, `speech.json`, `speech.keras` are generated files and are ignored by `.gitignore`. Do not commit them.
 

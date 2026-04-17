@@ -1,7 +1,8 @@
 import logging
+import os
 from pathlib import Path
 import shutil
-import tempfile, requests, json
+import tempfile, json
 from tqdm import tqdm
 import speech_recognition as sr
 from .. import common
@@ -9,6 +10,9 @@ from .dataset import ExtractSubtitlesText
 from ..subtitles import Extract
 from tscutter.ffmpeg import InputFile
 from tscutter.common import PtsMap
+from .llm_client import OpenAIClient
+from .prompt_engine import PromptEngine
+from .text_extractor import PrepareSubtitles as PrepareSubtitlesNew, LoadClipTexts
 
 logger = logging.getLogger('tsmarker.speech')
 
@@ -31,8 +35,8 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     except sr.RequestError:
         return ''
 
-def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool=False):
-    originalSubtitlesPath =  ptsMap.path.with_suffix('.ass.original')
+def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
+    originalSubtitlesPath = ptsMap.path.with_suffix('.ass.original')
     with tempfile.TemporaryDirectory(prefix='ExtractSubtitles_') as tmpFolder:
         for sub in Extract(videoPath, Path(tmpFolder)):
             if sub.suffix == '.ass':
@@ -40,7 +44,7 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool=False):
                 break
     clips = ptsMap.Clips()
     textList = [ ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips ] if originalSubtitlesPath.exists() else [ '' ] * len(clips)
-    # for clips without subtitles, extrac it from audio
+    # for clips without subtitles, extract it from audio
     generatedSubtitlesPath = ptsMap.path.with_suffix('.assgen')
     generatedSubtitles = {}
     for i in tqdm(range(len(clips)), disable=quiet):
@@ -53,26 +57,71 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool=False):
 
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, videoPath: Path, apiUrl: str, quiet=False) -> None:
-        originalSubtitlesPath = self.path.with_suffix('.ass.original')
-        generatedSubtitlesPath = self.path.with_suffix('.assgen')
+        """
+        使用LLM标记所有clip
+
+        Args:
+            videoPath: 视频文件路径（必须存在）
+            apiUrl: 被忽略的参数（保持接口兼容性）
+            quiet: 静默模式
+        """
+
+        # 验证视频文件路径
+        if not videoPath or not videoPath.exists():
+            raise FileNotFoundError(f"视频文件不存在: {videoPath}")
+
+        # 准备字幕文件
+        originalSubtitlesPath = self.path.with_suffix(".ass.original")
+        generatedSubtitlesPath = self.path.with_suffix(".assgen")
         if not originalSubtitlesPath.exists() or not generatedSubtitlesPath.exists():
-            PrepareSubtitles(videoPath, self.ptsMap, quiet=quiet)
+            PrepareSubtitlesNew(videoPath, self.ptsMap, quiet=quiet)
 
-        clips = self.Clips()    
-        textList = [ ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips ] if originalSubtitlesPath.exists() else [ '' ] * len(clips)
-        with generatedSubtitlesPath.open() as f:
-            generatedSubtitles = json.load(f)
-        for i in range(len(clips)):
-            if textList[i] == '':
-                textList[i] = generatedSubtitles[str(clips[i])]
+        # 加载所有clip文本
+        clips = self.Clips()
+        textList = LoadClipTexts(
+            videoPath,
+            self.ptsMap,
+            originalSubtitlesPath,
+            generatedSubtitlesPath,
+        )
 
-        # get prediction from RESTful service
-        payload = json.dumps(textList)
-        response = requests.request("POST", apiUrl, data=payload, headers={ 'Content-Type': 'application/json' })
-        Y = response.json()
-        for i in range(len(clips)):
-            self.Mark(clips[i], 'speech', float(Y[i][0]))
-        self.Save()
+        # 检查是否有文本内容
+        if not any(textList):
+            logger.warning("所有clip都没有文本内容，跳过标记")
+            return
+
+        try:
+            # 初始化LLM客户端
+            llm_client = OpenAIClient()
+
+            # 初始化提示引擎
+            prompt_engine = PromptEngine(videoPath)
+            program_info = prompt_engine.get_program_info()
+
+            # 获取提示模板
+            system_prompt = prompt_engine.get_system_prompt()
+            user_prompt_template = prompt_engine.get_user_prompt_template()
+
+            # 批量分类
+            logger.info(f"使用LLM分析{len(textList)}个clip...")
+            probabilities = llm_client.classify_batch(
+                texts=textList,
+                system_prompt=system_prompt,
+                user_prompt_template=user_prompt_template,
+                **program_info,
+            )
+
+            # 标记每个clip
+            for i, clip in enumerate(clips):
+                prob = probabilities[i] if i < len(probabilities) else 0.5
+                self.Mark(clip, "speech", float(prob))
+
+            self.Save()
+            logger.info(f"成功标记{len(clips)}个clip")
+
+        except Exception as e:
+            logger.error(f"LLM标记失败: {str(e)}")
+            raise
 
 def ReMarkAll(markermapFolder: Path, apiUrl: str, quiet=False):
     files = []
@@ -83,7 +132,21 @@ def ReMarkAll(markermapFolder: Path, apiUrl: str, quiet=False):
         if indexPath.exists() and originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
             files.append(markerPath)
     logger.info(f"Will re-mark {len(files)} files")
-    for markerPath in tqdm(files, desc='re-marking ...', disable=quiet):
-        indexPath = markerPath.with_suffix('.ptsmap')
+    for markerPath in tqdm(files, desc="re-marking ...", disable=quiet):
+        indexPath = markerPath.with_suffix(".ptsmap")
         markermap = MarkerMap(markerPath, PtsMap(indexPath))
-        markermap.MarkAll(Path(), apiUrl, quiet=quiet)
+
+        # 推断视频文件路径
+        # 尝试encoded目录下的.mp4文件（可能在子目录中）
+        video_path = markerPath.parent.parent / f"{markerPath.stem}.mp4"
+        if not video_path.exists():
+            # 尝试raw目录下的.m2ts文件
+            # encoded下有子目录时：parent.parent.parent.parent为TestFiles目录
+            raw_dir = markerPath.parent.parent.parent.parent / "raw"
+            video_path = raw_dir / f"{markerPath.stem}.m2ts"
+
+        if video_path.exists():
+            markermap.MarkAll(video_path, apiUrl, quiet=quiet)
+        else:
+            logger.warning(f"找不到视频文件，跳过标记: {markerPath.stem}")
+            continue

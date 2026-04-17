@@ -1,18 +1,20 @@
 import argparse
+import logging
+from pathlib import Path
 from .dataset import *
 from .MarkerMap import ReMarkAll
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Predict clips using BERT models')
+    parser = argparse.ArgumentParser(description='Predict clips using LLM')
     subparsers = parser.add_subparsers(required=True, title='subcommands', dest='command')
 
     subparser = subparsers.add_parser('dataset', help='create CSV dataset from .markermap files')
     subparser.add_argument('--input', '-i', required=True, help='the folder where to search *.markermap files')
     subparser.add_argument('--output', '-o', required=True, help='output JSON path')
-    
-    subparser = subparsers.add_parser('mark', help='train the model')
+
+    subparser = subparsers.add_parser('mark', help='mark clips using LLM')
     subparser.add_argument('--input', '-i', required=True, help='parent folder of .markermap files')
-    subparser.add_argument('--url', '-u', required=True, help='API URL to use for speech recognition')
+    subparser.add_argument('--url', '-u', default='', help='API URL (ignored, kept for compatibility)')
 
     args = parser.parse_args()
 
