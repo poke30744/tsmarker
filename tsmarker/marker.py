@@ -59,6 +59,14 @@ def main():
 
     args = parser.parse_args()
 
+    # 配置日志
+    log_level = logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
     if args.command == 'mark':
         MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.marker, methods=args.method, quiet=args.quiet)
     elif args.command == 'cut':

@@ -48,7 +48,7 @@ class OpenAIClient:
         **prompt_kwargs,
     ) -> List[float]:
         """
-        批量分类文本，返回每个文本为广告的概率
+        分类文本，返回每个文本为广告的概率（使用对话模式，每次处理一个clip）
 
         Args:
             texts: 文本列表
@@ -61,23 +61,53 @@ class OpenAIClient:
         """
         if not texts:
             return []
+        return self._classify_iterative(texts, system_prompt, user_prompt_template, **prompt_kwargs)
 
-        # 格式化clip文本
-        clip_texts_formatted = self._format_clip_texts(texts)
-        prompt_kwargs["clip_texts_formatted"] = clip_texts_formatted
 
-        # 构建用户提示
-        user_prompt = user_prompt_template.format(**prompt_kwargs)
+    def _classify_iterative(
+        self,
+        texts: List[str],
+        system_prompt: str,
+        user_prompt_template: str,
+        **prompt_kwargs,
+    ) -> List[float]:
+        """
+        迭代分类文本（使用对话模式，系统提示只发送一次）
+        """
+        probabilities = []
+        total = len(texts)
 
-        try:
+        # 格式化系统提示（如果包含占位符）
+        if "{" in system_prompt:
+            formatted_system_prompt = system_prompt.format(**prompt_kwargs)
+        else:
+            formatted_system_prompt = system_prompt  # 通用提示，不需要格式化
+
+        # 初始化消息历史，只包含系统提示
+        messages = [
+            {"role": "system", "content": formatted_system_prompt}
+        ]
+
+        for idx, text in enumerate(texts, start=1):
+            # 格式化单个clip文本
+            single_text_formatted = f"1. {text}"
+            prompt_kwargs["clip_texts_formatted"] = single_text_formatted
+
+            # 构建用户提示
+            user_prompt = user_prompt_template.format(**prompt_kwargs)
+
+            # 添加用户消息到历史
+            messages.append({"role": "user", "content": user_prompt})
+
+            # 记录请求（第一次记录系统提示，之后只记录用户提示）
+            log_system = (idx == 1)
+            self._log_request(formatted_system_prompt, user_prompt, 1, idx, total, log_system=log_system)
+
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=messages,
                 temperature=float(os.getenv("SPEECH_TEMPERATURE", "0.1")),
-                max_tokens=int(os.getenv("SPEECH_MAX_TOKENS", "2000")),
+                max_tokens=int(os.getenv("SPEECH_MAX_TOKENS", "500")),
                 timeout=float(os.getenv("OPENAI_TIMEOUT", "30.0")),
             )
 
@@ -85,84 +115,65 @@ class OpenAIClient:
             if not content:
                 raise ValueError("Empty response from OpenAI API")
 
-            # 解析响应
-            probabilities = self._parse_response(content, len(texts))
-            return probabilities
+            # 记录响应
+            self._log_response(content)
 
-        except Exception as e:
-            logger.error(f"OpenAI API调用失败: {str(e)}")
-            raise
+            # 解析单个响应
+            prob = self._parse_single_response(content)
+            probabilities.append(prob)
 
-    def _format_clip_texts(self, texts: List[str]) -> str:
-        """格式化clip文本列表为提示字符串"""
-        formatted = []
-        for i, text in enumerate(texts, 1):
-            # 如果文本太长，适当截断
-            if len(text) > 500:
-                text = text[:497] + "..."
-            formatted.append(f"{i}. {text}")
-        return "\n\n".join(formatted)
+            # 添加助手响应到历史，以便下一个clip有完整上下文
+            messages.append({"role": "assistant", "content": content})
 
-    def _parse_response(self, response_text: str, expected_count: int) -> List[float]:
+            logger.info(f"处理clip {idx}/{total}: 概率={prob}")
+
+        return probabilities
+
+    def _log_request(self, system_prompt: str, user_prompt: str, clip_count: int, current_idx: int = None, total: int = None, log_system: bool = True):
+        """记录请求日志"""
+        if current_idx is not None and total is not None:
+            logger.info(f"请求 clip {current_idx}/{total} (共{clip_count}个clip)")
+        else:
+            logger.info(f"请求 {clip_count}个clip")
+        # 只记录系统提示（如果是第一次）和用户提示
+        if log_system:
+            logger.info(f"系统提示: {system_prompt}")
+        logger.info(f"用户提示: {user_prompt}")
+
+    def _log_response(self, response_text: str):
+        """记录响应日志"""
+        logger.info(f"响应: {response_text}")
+
+    def _parse_single_response(self, response_text: str) -> float:
         """
-        解析LLM响应，提取概率值
+        解析单个clip的响应，提取概率值
 
         支持格式：
         1. AD: 0.95 理由
         2. AD: 0.30 理由
         或
         1. AD: 0.95 理由
-        2. AD: 0.20 理由
         """
-        probabilities = []
-
-        # 按行分割
+        import re
         lines = response_text.strip().split("\n")
-
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-
-            # 匹配格式：序号. AD: 概率 理由
-            # 支持多种格式变体
-            import re
-
-            # 模式1: "1. AD: 0.95 理由"
-            pattern1 = r"^\d+\.\s*AD:\s*([0-9]*\.?[0-9]+)"
-            # 模式2: "1. AD: 0.95 理由" (无空格)
-            pattern2 = r"^\d+\.\s*AD:\s*([0-9]*\.?[0-9]+)"
-            # 模式3: "AD: 0.95 理由" (可能无序)
-            pattern3 = r"AD:\s*([0-9]*\.?[0-9]+)"
-
-            match = None
-            for pattern in [pattern1, pattern2, pattern3]:
+            # 匹配格式：序号. AD: 概率 理由 或 AD: 概率 理由
+            patterns = [
+                r"^\d+\.\s*AD:\s*([0-9]*\.?[0-9]+)",  # 1. AD: 0.95
+                r"AD:\s*([0-9]*\.?[0-9]+)",           # AD: 0.95
+            ]
+            for pattern in patterns:
                 match = re.search(pattern, line, re.IGNORECASE)
                 if match:
-                    break
+                    try:
+                        prob = float(match.group(1))
+                        # 确保概率在0-1范围内
+                        prob = max(0.0, min(1.0, prob))
+                        return prob
+                    except ValueError:
+                        raise ValueError(f"无法解析概率值: {line}")
+        raise ValueError(f"无法解析LLM响应: {response_text[:200]}...")
 
-            if match:
-                try:
-                    prob = float(match.group(1))
-                    # 确保概率在0-1范围内
-                    prob = max(0.0, min(1.0, prob))
-                    probabilities.append(prob)
-                except ValueError:
-                    logger.warning(f"无法解析概率值: {line}")
-                    probabilities.append(0.5)  # 默认值
-            else:
-                logger.warning(f"无法解析行: {line}")
-                probabilities.append(0.5)  # 默认值
-
-        # 如果解析出的数量不足，用默认值填充
-        if len(probabilities) < expected_count:
-            logger.warning(
-                f"解析出的概率数量({len(probabilities)})少于期望值({expected_count})，用默认值填充"
-            )
-            probabilities.extend([0.5] * (expected_count - len(probabilities)))
-
-        # 如果解析出的数量过多，截断
-        if len(probabilities) > expected_count:
-            probabilities = probabilities[:expected_count]
-
-        return probabilities

@@ -113,7 +113,7 @@ class MarkerMap(common.MarkerMap):
 
             # 标记每个clip
             for i, clip in enumerate(clips):
-                prob = probabilities[i] if i < len(probabilities) else 0.5
+                prob = probabilities[i]
                 self.Mark(clip, "speech", float(prob))
 
             self.Save()

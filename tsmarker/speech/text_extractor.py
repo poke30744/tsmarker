@@ -111,6 +111,10 @@ def LoadClipTexts(
     """
     clips = ptsMap.Clips()
 
+    # 记录文件状态
+    logger.info(f"字幕文件状态: original={originalSubtitlesPath.exists()}, generated={generatedSubtitlesPath.exists()}")
+    logger.info(f"处理 {len(clips)} 个clip")
+
     # 从原始字幕提取
     textList = (
         [ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips]
@@ -118,7 +122,18 @@ def LoadClipTexts(
         else [""] * len(clips)
     )
 
+    # 跟踪来源
+    source_list = ["none"] * len(clips)
+    for i, text in enumerate(textList):
+        if text:
+            source_list[i] = "original"
+
+    # 统计原始字幕结果
+    original_count = sum(1 for source in source_list if source == "original")
+    logger.info(f"原始字幕提供 {original_count}/{len(clips)} 个clip文本")
+
     # 从生成的字幕补充
+    generated_count = 0
     if generatedSubtitlesPath.exists():
         with generatedSubtitlesPath.open() as f:
             generatedSubtitles = json.load(f)
@@ -127,6 +142,33 @@ def LoadClipTexts(
             if textList[i] == "":
                 clip_key = str(clips[i])
                 if clip_key in generatedSubtitles:
-                    textList[i] = generatedSubtitles[clip_key]
+                    generated_text = generatedSubtitles[clip_key]
+                    if generated_text:  # 只记录非空文本
+                        textList[i] = generated_text
+                        source_list[i] = "generated"
+                        generated_count += 1
+                        logger.debug(f"Clip {i} 使用生成字幕: {generated_text[:100]}...")
+                    else:
+                        logger.debug(f"Clip {i} 生成字幕为空，跳过")
+
+    if generated_count > 0:
+        logger.info(f"生成字幕补充 {generated_count}/{len(clips)} 个clip文本")
+
+    # 最终统计
+    total_with_text = sum(1 for text in textList if text)
+    logger.info(f"最终 {total_with_text}/{len(clips)} 个clip有文本内容")
+
+    # 记录来源统计
+    source_summary = {}
+    for source in source_list:
+        source_summary[source] = source_summary.get(source, 0) + 1
+    logger.info(f"字幕来源统计: {source_summary}")
+
+    # 记录部分clip文本示例（最多5个）
+    recorded = 0
+    for i, (text, source) in enumerate(zip(textList, source_list)):
+        if text and recorded < 5:
+            logger.debug(f"Clip {i} 示例 ({source}): {text[:100]}...")
+            recorded += 1
 
     return textList
