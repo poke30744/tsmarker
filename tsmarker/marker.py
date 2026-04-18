@@ -25,7 +25,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False):
         elif method == 'clipinfo':
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
         elif method == 'speech':
-            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, '')
+            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
     return markerPath
 
 def main():

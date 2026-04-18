@@ -56,13 +56,12 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
         json.dump(generatedSubtitles, f, ensure_ascii=False, indent=True)
 
 class MarkerMap(common.MarkerMap):
-    def MarkAll(self, videoPath: Path, apiUrl: str, quiet=False) -> None:
+    def MarkAll(self, videoPath: Path, quiet=False) -> None:
         """
         Mark all clips using LLM
 
         Args:
             videoPath: Video file path (must exist)
-            apiUrl: Ignored parameter (for interface compatibility)
             quiet: Silent mode
         """
 
