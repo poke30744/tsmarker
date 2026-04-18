@@ -59,7 +59,7 @@ def main():
 
     args = parser.parse_args()
 
-    # 配置日志
+    # Configure logging
     log_level = logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(
         level=log_level,

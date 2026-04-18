@@ -7,10 +7,10 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger("tsmarker.speech.prompt")
 
-# 星期几映射（日语）
+# Day of week mapping (Japanese)
 WEEKDAY_JA = ["月", "火", "水", "木", "金", "土", "日"]
 
-# 默认值
+# Default values
 DEFAULT_YAML_VALUES = {
     "name": "不明番組",
     "description": "",
@@ -25,111 +25,66 @@ DEFAULT_YAML_VALUES = {
 
 
 class PromptEngine:
-    """提示引擎，负责构建LLM提示和处理YAML元数据"""
+    """Prompt engine for building LLM prompts and processing YAML metadata"""
 
-    def __init__(self, video_path: Path):
+    def __init__(self, video_path: Path, markermap_path: Optional[Path] = None):
         self.video_path = video_path
+        self.markermap_path = markermap_path
         self.yaml_data = self._load_yaml_data()
-        self.channels_map = self._load_channels_map()
 
     def _load_yaml_data(self) -> Dict[str, Any]:
-        """加载YAML文件数据"""
-        yaml_path = self.video_path.with_suffix(".yaml")
+        """Load YAML file data"""
+        video_path = self.video_path
+        video_name = video_path.stem
 
-        # 如果视频文件在raw目录，尝试在encoded目录查找YAML文件
-        if not yaml_path.exists():
-            # 检查路径中是否包含"raw"
-            video_str = str(self.video_path)
-            if "raw" in video_str:
-                # 尝试替换"raw"为"encoded"来查找YAML文件
-                encoded_path = video_str.replace("raw", "encoded")
-                encoded_yaml_path = Path(encoded_path).with_suffix(".yaml")
+        if not self.markermap_path:
+            raise ValueError("markermap_path must be provided to determine YAML file location")
 
-                # 如果encoded目录下有YAML文件，使用它
-                if encoded_yaml_path.exists():
-                    yaml_path = encoded_yaml_path
-                    logger.info(f"在encoded目录找到YAML文件: {yaml_path}")
-                else:
-                    # 尝试在encoded目录下递归查找同名YAML文件
-                    encoded_root = Path(video_str[:video_str.find("raw")]) / "encoded"
-                    if encoded_root.exists():
-                        video_name = self.video_path.stem
-                        # 由于文件名包含特殊字符，使用简单的遍历查找
-                        for yaml_file in encoded_root.rglob("*.yaml"):
-                            if yaml_file.stem == video_name:
-                                yaml_path = yaml_file
-                                logger.info(f"递归查找到YAML文件: {yaml_path}")
-                                break
+        # YAML is in the parent directory of markermap directory, with same name as video file
+        yaml_path = self.markermap_path.parent.parent / f"{video_name}.yaml"
 
         if not yaml_path.exists():
-            logger.warning(f"YAML文件不存在: {yaml_path}")
-            return {}
+            raise FileNotFoundError(
+                f"YAML file does not exist: {yaml_path}\n"
+                f"Video file: {video_path}\n"
+                f"Expected YAML location: {yaml_path}"
+            )
 
+        logger.info(f"Loading YAML file: {yaml_path}")
+        return self._load_yaml_file(yaml_path)
+
+    def _load_yaml_file(self, yaml_path: Path) -> Dict[str, Any]:
+        """Load a single YAML file"""
         try:
             with yaml_path.open(encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             if not isinstance(data, dict):
-                logger.warning(f"YAML文件格式无效: {yaml_path}")
-                return {}
+                logger.error(f"Invalid YAML file format: {yaml_path}")
+                raise ValueError(f"Invalid YAML file format: {yaml_path}")
 
+            logger.info(f"Successfully loaded YAML file: {yaml_path}")
             return data
 
         except Exception as e:
-            logger.error(f"加载YAML文件失败 {yaml_path}: {str(e)}")
-            return {}
+            logger.error(f"Failed to load YAML file {yaml_path}: {str(e)}")
+            raise
 
-    def _load_channels_map(self) -> Dict[int, str]:
-        """加载channels.yml映射表"""
-        channels_map = {}
-
-        # 尝试多个可能的位置
-        possible_paths = [
-            Path(__file__).parent.parent.parent
-            / "tstriage"
-            / "tstriage"
-            / "channels.yml",
-            Path(__file__).parent.parent.parent / "tstriage" / "channels.yml",
-            Path("channels.yml"),
-        ]
-
-        for path in possible_paths:
-            if path.exists():
-                try:
-                    with path.open(encoding="utf-8") as f:
-                        channels = yaml.safe_load(f)
-
-                    if isinstance(channels, list):
-                        for channel in channels:
-                            if (
-                                isinstance(channel, dict)
-                                and "serviceId" in channel
-                                and "name" in channel
-                            ):
-                                channels_map[channel["serviceId"]] = channel["name"]
-                        logger.info(f"从 {path} 加载了 {len(channels_map)} 个频道映射")
-                        break
-                except Exception as e:
-                    logger.warning(f"加载channels.yml失败 {path}: {str(e)}")
-
-        return channels_map
 
     def get_program_info(self) -> Dict[str, Any]:
-        """获取节目信息，包含所有YAML字段"""
+        """Get program information, including all YAML fields"""
         info = DEFAULT_YAML_VALUES.copy()
 
-        # 基础字段
+        # Basic fields
         info["program_name"] = self.yaml_data.get("name", self.video_path.stem)
         info["program_description"] = self.yaml_data.get("description", "")
         info["service_id"] = self.yaml_data.get("serviceId", 0)
 
-        # 频道名称
+        # Channel name
         channel_name = self.yaml_data.get("serviceId_desc")
-        if not channel_name and info["service_id"] in self.channels_map:
-            channel_name = self.channels_map[info["service_id"]]
         info["channel_name"] = channel_name or DEFAULT_YAML_VALUES["channel_name"]
 
-        # 播出时间处理
+        # Broadcast time processing
         start_at = self.yaml_data.get("startAt")
         if start_at:
             try:
@@ -137,24 +92,24 @@ class PromptEngine:
                 info["broadcast_time"] = self.yaml_data.get(
                     "startAt_desc", dt.strftime("%Y-%m-%d %H:%M")
                 )
-                info["weekday"] = WEEKDAY_JA[dt.weekday()]  # 日语星期
+                info["weekday"] = WEEKDAY_JA[dt.weekday()]  # Japanese day of week
                 info["hour"] = dt.hour
             except Exception as e:
-                logger.warning(f"解析播出时间失败: {str(e)}")
+                logger.warning(f"Failed to parse broadcast time: {str(e)}")
                 info["broadcast_time"] = DEFAULT_YAML_VALUES["broadcast_time"]
-                info["weekday"] = "不明"
+                info["weekday"] = "Unknown"
                 info["hour"] = 0
         else:
             info["broadcast_time"] = DEFAULT_YAML_VALUES["broadcast_time"]
-            info["weekday"] = "不明"
+            info["weekday"] = "Unknown"
             info["hour"] = 0
 
-        # 节目时长
+        # Program duration
         info["duration_desc"] = self.yaml_data.get(
             "duration_desc", DEFAULT_YAML_VALUES["duration_desc"]
         )
 
-        # 节目类型
+        # Program genre
         genres = self.yaml_data.get("genres", [])
         if genres and isinstance(genres, list) and len(genres) > 0:
             genre = genres[0]
@@ -163,25 +118,25 @@ class PromptEngine:
                 info["genre_lv2"] = genre.get("lv2", DEFAULT_YAML_VALUES["genre_lv2"])
                 info["genre_en"] = genre.get("un1", DEFAULT_YAML_VALUES["genre_en"])
 
-        # 视频文件名
+        # Video filename
         info["video_filename"] = self.video_path.name
 
-        # 扩展描述（如有）
+        # Extended description (if available)
         extended = self.yaml_data.get("extended")
         if extended and isinstance(extended, dict):
-            # 合并扩展描述
+            # Merge extended description
             extended_text = " ".join(str(v) for v in extended.values() if v)
             if extended_text:
                 info["program_description"] += f"\n\n{extended_text}"
 
-        # 截断过长的描述
+        # Truncate overly long description
         if len(info["program_description"]) > 500:
             info["program_description"] = info["program_description"][:497] + "..."
 
         return info
 
     def get_system_prompt(self) -> str:
-        """获取系统提示（包含所有视频共享信息）"""
+        """Get system prompt (contains all video-shared information)"""
         return """你是广告识别专家，专门分析日本电视节目的广告片段。请根据节目上下文和文本内容，判断每个视频片段是否为广告。
 
 节目上下文分析：
@@ -217,5 +172,5 @@ AD: [概率值] [简短理由]
 - 中间值表示可能性"""
 
     def get_user_prompt_template(self) -> str:
-        """获取用户提示模板（只包含当前clip文本）"""
+        """Get user prompt template (only contains current clip text)"""
         return "{clip_texts_formatted}"

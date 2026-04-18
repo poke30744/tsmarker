@@ -13,12 +13,12 @@ from .dataset import ExtractSubtitlesText as OriginalExtractSubtitlesText
 
 logger = logging.getLogger("tsmarker.speech.text_extractor")
 
-# 复用dataset.py中的函数
+# Reuse functions from dataset.py
 ExtractSubtitlesText = OriginalExtractSubtitlesText
 
 
 def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
-    """从音频提取文本（语音识别）"""
+    """Extract text from audio (speech recognition)"""
     recognizer = sr.Recognizer()
     inputFile = InputFile(videoPath)
     with tempfile.TemporaryDirectory(prefix="ExtractAudioText_") as tmpFolder:
@@ -48,20 +48,20 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
 
 def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
     """
-    准备字幕文件，包括提取原始字幕和生成语音转写字幕
+    Prepare subtitle files, including extracting original subtitles and generating speech-to-text subtitles
 
-    返回：
-        originalSubtitlesPath: 原始字幕文件路径
-        generatedSubtitlesPath: 生成的字幕文件路径
+    Returns:
+        originalSubtitlesPath: Original subtitle file path
+        generatedSubtitlesPath: Generated subtitle file path
     """
     originalSubtitlesPath = ptsMap.path.with_suffix(".ass.original")
     generatedSubtitlesPath = ptsMap.path.with_suffix(".assgen")
 
-    # 如果文件已存在，直接返回
+    # If files already exist, return directly
     if originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
         return originalSubtitlesPath, generatedSubtitlesPath
 
-    # 提取原始字幕
+    # Extract original subtitles
     if not originalSubtitlesPath.exists():
         with tempfile.TemporaryDirectory(prefix="ExtractSubtitles_") as tmpFolder:
             for sub in Extract(videoPath, Path(tmpFolder)):
@@ -69,7 +69,7 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
                     shutil.copy(sub, originalSubtitlesPath)
                     break
 
-    # 提取每个clip的文本
+    # Extract text for each clip
     clips = ptsMap.Clips()
     textList = (
         [ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips]
@@ -77,14 +77,14 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
         else [""] * len(clips)
     )
 
-    # 对于没有字幕的clip，从音频提取
+    # For clips without subtitles, extract from audio
     generatedSubtitles = {}
     for i in tqdm(range(len(clips)), disable=quiet):
         if textList[i] == "":
             textList[i] = ExtractAudioText(videoPath, clips[i])
             generatedSubtitles[str(clips[i])] = textList[i]
 
-    # 保存生成的字幕
+    # Save generated subtitles
     with generatedSubtitlesPath.open("w") as f:
         json.dump(generatedSubtitles, f, ensure_ascii=False, indent=True)
 
@@ -98,41 +98,41 @@ def LoadClipTexts(
     generatedSubtitlesPath: Path,
 ) -> list[str]:
     """
-    加载所有clip的文本
+    Load all clip texts
 
     Args:
-        videoPath: 视频文件路径
-        ptsMap: PTS映射
-        originalSubtitlesPath: 原始字幕文件路径
-        generatedSubtitlesPath: 生成的字幕文件路径
+        videoPath: Video file path
+        ptsMap: PTS map
+        originalSubtitlesPath: Original subtitle file path
+        generatedSubtitlesPath: Generated subtitle file path
 
     Returns:
-        文本列表，每个元素对应一个clip
+        Text list, each element corresponds to a clip
     """
     clips = ptsMap.Clips()
 
-    # 记录文件状态
-    logger.info(f"字幕文件状态: original={originalSubtitlesPath.exists()}, generated={generatedSubtitlesPath.exists()}")
-    logger.info(f"处理 {len(clips)} 个clip")
+    # Log file status
+    logger.info(f"Subtitle file status: original={originalSubtitlesPath.exists()}, generated={generatedSubtitlesPath.exists()}")
+    logger.info(f"Processing {len(clips)} clips")
 
-    # 从原始字幕提取
+    # Extract from original subtitles
     textList = (
         [ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips]
         if originalSubtitlesPath.exists()
         else [""] * len(clips)
     )
 
-    # 跟踪来源
+    # Track sources
     source_list = ["none"] * len(clips)
     for i, text in enumerate(textList):
         if text:
             source_list[i] = "original"
 
-    # 统计原始字幕结果
+    # Count original subtitle results
     original_count = sum(1 for source in source_list if source == "original")
-    logger.info(f"原始字幕提供 {original_count}/{len(clips)} 个clip文本")
+    logger.info(f"Original subtitles provide {original_count}/{len(clips)} clip texts")
 
-    # 从生成的字幕补充
+    # Supplement from generated subtitles
     generated_count = 0
     if generatedSubtitlesPath.exists():
         with generatedSubtitlesPath.open() as f:
@@ -143,32 +143,32 @@ def LoadClipTexts(
                 clip_key = str(clips[i])
                 if clip_key in generatedSubtitles:
                     generated_text = generatedSubtitles[clip_key]
-                    if generated_text:  # 只记录非空文本
+                    if generated_text:  # Only record non-empty text
                         textList[i] = generated_text
                         source_list[i] = "generated"
                         generated_count += 1
-                        logger.debug(f"Clip {i} 使用生成字幕: {generated_text[:100]}...")
+                        logger.debug(f"Clip {i} using generated subtitle: {generated_text[:100]}...")
                     else:
-                        logger.debug(f"Clip {i} 生成字幕为空，跳过")
+                        logger.debug(f"Clip {i} generated subtitle is empty, skipping")
 
     if generated_count > 0:
-        logger.info(f"生成字幕补充 {generated_count}/{len(clips)} 个clip文本")
+        logger.info(f"Generated subtitles supplement {generated_count}/{len(clips)} clip texts")
 
-    # 最终统计
+    # Final statistics
     total_with_text = sum(1 for text in textList if text)
-    logger.info(f"最终 {total_with_text}/{len(clips)} 个clip有文本内容")
+    logger.info(f"Finally {total_with_text}/{len(clips)} clips have text content")
 
-    # 记录来源统计
+    # Log source statistics
     source_summary = {}
     for source in source_list:
         source_summary[source] = source_summary.get(source, 0) + 1
-    logger.info(f"字幕来源统计: {source_summary}")
+    logger.info(f"Subtitle source statistics: {source_summary}")
 
-    # 记录部分clip文本示例（最多5个）
+    # Log some clip text examples (up to 5)
     recorded = 0
     for i, (text, source) in enumerate(zip(textList, source_list)):
         if text and recorded < 5:
-            logger.debug(f"Clip {i} 示例 ({source}): {text[:100]}...")
+            logger.debug(f"Clip {i} example ({source}): {text[:100]}...")
             recorded += 1
 
     return textList

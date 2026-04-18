@@ -58,25 +58,25 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
 class MarkerMap(common.MarkerMap):
     def MarkAll(self, videoPath: Path, apiUrl: str, quiet=False) -> None:
         """
-        使用LLM标记所有clip
+        Mark all clips using LLM
 
         Args:
-            videoPath: 视频文件路径（必须存在）
-            apiUrl: 被忽略的参数（保持接口兼容性）
-            quiet: 静默模式
+            videoPath: Video file path (must exist)
+            apiUrl: Ignored parameter (for interface compatibility)
+            quiet: Silent mode
         """
 
-        # 验证视频文件路径
+        # Validate video file path
         if not videoPath or not videoPath.exists():
-            raise FileNotFoundError(f"视频文件不存在: {videoPath}")
+            raise FileNotFoundError(f"Video file does not exist: {videoPath}")
 
-        # 准备字幕文件
+        # Prepare subtitle files
         originalSubtitlesPath = self.path.with_suffix(".ass.original")
         generatedSubtitlesPath = self.path.with_suffix(".assgen")
         if not originalSubtitlesPath.exists() or not generatedSubtitlesPath.exists():
             PrepareSubtitlesNew(videoPath, self.ptsMap, quiet=quiet)
 
-        # 加载所有clip文本
+        # Load all clip texts
         clips = self.Clips()
         textList = LoadClipTexts(
             videoPath,
@@ -85,68 +85,55 @@ class MarkerMap(common.MarkerMap):
             generatedSubtitlesPath,
         )
 
-        # 检查是否有文本内容
+        # Check if there is any text content
         if not any(textList):
-            logger.warning("所有clip都没有文本内容，跳过标记")
+            logger.warning("All clips have no text content, skipping marking")
             return
 
         try:
-            # 初始化LLM客户端
+            # Initialize LLM client
             llm_client = OpenAIClient()
 
-            # 初始化提示引擎
-            prompt_engine = PromptEngine(videoPath)
+            # Initialize prompt engine
+            prompt_engine = PromptEngine(videoPath, self.path)
             program_info = prompt_engine.get_program_info()
 
-            # 获取提示模板
+            # Get prompt templates
             system_prompt = prompt_engine.get_system_prompt()
             user_prompt_template = prompt_engine.get_user_prompt_template()
 
-            # 批量分类
-            logger.info(f"使用LLM分析{len(textList)}个clip...")
-            probabilities = llm_client.classify_batch(
-                texts=textList,
+            # Filter empty text clips
+            non_empty_indices = [i for i, text in enumerate(textList) if text]
+            non_empty_texts = [textList[i] for i in non_empty_indices]
+
+            if not non_empty_texts:
+                logger.warning("All clips have no text content, skipping marking")
+                return
+
+            logger.info(f"Using LLM to analyze {len(non_empty_texts)} clips with text (out of {len(textList)} total clips)...")
+
+            # Only process clips with text
+            non_empty_probabilities = llm_client.classify_batch(
+                texts=non_empty_texts,
                 system_prompt=system_prompt,
                 user_prompt_template=user_prompt_template,
                 **program_info,
             )
 
-            # 标记每个clip
+            # Build complete probability list, empty text clips use default value 0.5
+            probabilities = [0.5] * len(textList)  # Default value: uncertain
+            for idx, prob in zip(non_empty_indices, non_empty_probabilities):
+                probabilities[idx] = prob
+
+            # Mark each clip
             for i, clip in enumerate(clips):
                 prob = probabilities[i]
                 self.Mark(clip, "speech", float(prob))
 
             self.Save()
-            logger.info(f"成功标记{len(clips)}个clip")
+            logger.info(f"Successfully marked {len(clips)} clips ({len(non_empty_texts)} with text, {len(textList)-len(non_empty_texts)} using default value 0.5)")
 
         except Exception as e:
-            logger.error(f"LLM标记失败: {str(e)}")
+            logger.error(f"LLM marking failed: {str(e)}")
             raise
 
-def ReMarkAll(markermapFolder: Path, apiUrl: str, quiet=False):
-    files = []
-    for markerPath in tqdm(markermapFolder.glob('**/*.markermap'), desc='searching *.markermap ...', disable=quiet):
-        indexPath = markerPath.with_suffix('.ptsmap')
-        originalSubtitlesPath = markerPath.with_suffix('.ass.original')
-        generatedSubtitlesPath = markerPath.with_suffix('.assgen')
-        if indexPath.exists() and originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
-            files.append(markerPath)
-    logger.info(f"Will re-mark {len(files)} files")
-    for markerPath in tqdm(files, desc="re-marking ...", disable=quiet):
-        indexPath = markerPath.with_suffix(".ptsmap")
-        markermap = MarkerMap(markerPath, PtsMap(indexPath))
-
-        # 推断视频文件路径
-        # 尝试encoded目录下的.mp4文件（可能在子目录中）
-        video_path = markerPath.parent.parent / f"{markerPath.stem}.mp4"
-        if not video_path.exists():
-            # 尝试raw目录下的.m2ts文件
-            # encoded下有子目录时：parent.parent.parent.parent为TestFiles目录
-            raw_dir = markerPath.parent.parent.parent.parent / "raw"
-            video_path = raw_dir / f"{markerPath.stem}.m2ts"
-
-        if video_path.exists():
-            markermap.MarkAll(video_path, apiUrl, quiet=quiet)
-        else:
-            logger.warning(f"找不到视频文件，跳过标记: {markerPath.stem}")
-            continue
