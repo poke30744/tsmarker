@@ -147,9 +147,9 @@ def LoadClipTexts(
                         textList[i] = generated_text
                         source_list[i] = "generated"
                         generated_count += 1
-                        logger.debug(f"Clip {i} using generated subtitle: {generated_text[:100]}...")
+                        logger.info(f"Clip {i} using generated subtitle: {generated_text[:100]}...")
                     else:
-                        logger.debug(f"Clip {i} generated subtitle is empty, skipping")
+                        logger.info(f"Clip {i} generated subtitle is empty, skipping")
 
     if generated_count > 0:
         logger.info(f"Generated subtitles supplement {generated_count}/{len(clips)} clip texts")
@@ -168,7 +168,7 @@ def LoadClipTexts(
     recorded = 0
     for i, (text, source) in enumerate(zip(textList, source_list)):
         if text and recorded < 5:
-            logger.debug(f"Clip {i} example ({source}): {text[:100]}...")
+            logger.info(f"Clip {i} example ({source}): {text[:100]}...")
             recorded += 1
 
     return textList
