@@ -8,7 +8,7 @@ class MarkerMap(common.MarkerMap):
         clips = self.Clips()
         videoInfo = InputFile(videoPath).GetInfo()
         videoDuration = videoInfo.duration
-        for i in tqdm(range(len(clips)), desc='Marking clip info', disable=quiet):
+        for i in tqdm(range(len(clips)), desc='Marking clip info'):
             clip = clips[i]
             self.Mark(clip, 'position', clip[0] / videoDuration)
             self.Mark(clip, 'duration', clip[1] - clip[0])

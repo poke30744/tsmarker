@@ -79,7 +79,7 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
 
     # For clips without subtitles, extract from audio
     generatedSubtitles = {}
-    for i in tqdm(range(len(clips)), disable=quiet):
+    for i in tqdm(range(len(clips))):
         if textList[i] == "":
             textList[i] = ExtractAudioText(videoPath, clips[i])
             generatedSubtitles[str(clips[i])] = textList[i]

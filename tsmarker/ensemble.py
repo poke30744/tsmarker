@@ -83,7 +83,7 @@ def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: boo
     # find video files
     videoFiles = []
     videoFilesPathMap: dict[str, Path] = {}
-    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='Searching *.mp4 ...', disable=quiet):
+    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='Searching *.mp4 ...'):
         videoFile = path.stem.replace('_trimmed', '').replace('_prog', '')
         videoFiles.append(videoFile)
         videoFilesPathMap[videoFile] = path
@@ -98,7 +98,7 @@ def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: boo
         df = df[df['_filename'].isin(commonVideoFiles)]
     
     # load features from new files
-    for videoFile in tqdm(newVideoFiles, desc='loading features from updated files ...', disable=quiet):
+    for videoFile in tqdm(newVideoFiles, desc='loading features from updated files ...'):
         path = videoFilesPathMap[videoFile]
         features = LoadFeaturesFromVideo(path, normalize)
         if len(features) == 0:
@@ -136,7 +136,7 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     weight_test = compute_sample_weight(class_weight='balanced', y=y_test)
 
     best_n, best_score = 0, 0
-    for n in tqdm(range(1000, 1001), desc='Training ...', disable=quiet):
+    for n in tqdm(range(1000, 1001), desc='Training ...'):
         clf = AdaBoostClassifier(n_estimators=n, random_state=random_state)
         clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
         score = clf.score(X_test, y_test, sample_weight=weight_test) # type: ignore

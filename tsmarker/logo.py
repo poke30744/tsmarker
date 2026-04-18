@@ -20,7 +20,7 @@ class MarkerMap(common.MarkerMap):
                 logoEdge = cv2imread(logoPath, 0)
                 
             clips = self.Clips()
-            for clip in tqdm(clips, desc='Detecting logo ...', disable=quiet):
+            for clip in tqdm(clips, desc='Detecting logo ...'):
                 logoScore = self.ExtractLogoScore(videoPath, clip, maxTimeToExtract, tmpFolder, logoEdge)
                 if logoScore <= 0.5:
                     # try again to extract the entire duration of the clip
