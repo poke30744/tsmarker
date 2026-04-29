@@ -42,8 +42,6 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
         return text
     except sr.UnknownValueError:
         return ""
-    except sr.RequestError:
-        return ""
 
 
 def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
