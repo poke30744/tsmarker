@@ -102,16 +102,22 @@ class OpenAIClient:
             log_system = (idx == 1)
             self._log_request(formatted_system_prompt, user_prompt, 1, idx, total, log_system=log_system)
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=float(os.getenv("SPEECH_TEMPERATURE", "0.1")),
-                max_tokens=int(os.getenv("SPEECH_MAX_TOKENS", "500")),
-                timeout=float(os.getenv("OPENAI_TIMEOUT", "30.0")),
-            )
+            max_retries = int(os.getenv("LLM_MAX_RETRIES", "3"))
+            for attempt in range(max_retries + 1):
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=float(os.getenv("SPEECH_TEMPERATURE", "0.1")),
+                    max_tokens=int(os.getenv("SPEECH_MAX_TOKENS", "500")),
+                    timeout=float(os.getenv("OPENAI_TIMEOUT", "30.0")),
+                )
 
-            content = response.choices[0].message.content
-            if not content:
+                content = response.choices[0].message.content
+                if content:
+                    break
+                if attempt < max_retries:
+                    logger.warning(f"Empty response from API for clip {idx}/{total}, retrying ({attempt + 1}/{max_retries})...")
+            else:
                 raise ValueError("Empty response from OpenAI API")
 
             # Log response
