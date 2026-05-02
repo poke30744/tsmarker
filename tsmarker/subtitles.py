@@ -2,7 +2,7 @@ import subprocess, argparse, logging
 from pathlib import Path
 import tempfile
 import pysubs2
-from tscutter.common import CopyPartPipe, TsFileNotFound
+from tscutter.common import TsFileNotFound
 from . import common
 
 logger = logging.getLogger('tsmarker.subtitles')
@@ -34,7 +34,8 @@ def Extract(path: Path, folder: Path) -> list[Path]:
             creationflags=creationflags,
             shell=True)
         try:
-            CopyPartPipe(path, pipeObj.stdin, 0, path.stat().st_size)
+            with open(path, 'rb') as f:
+                pipeObj.stdin.write(f.read())
         except BrokenPipeError:
             pass
         pipeObj.stdin.close()
