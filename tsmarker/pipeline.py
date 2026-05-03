@@ -79,7 +79,10 @@ class InputFile(ffmpeg.InputFile):
                 for item in line.split(' '):
                     if item.startswith('time='):
                         timeFields = item.replace('time=', '').split(':')
-                        time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60  + float(timeFields[2])
+                        try:
+                            time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60 + float(timeFields[2])
+                        except ValueError:
+                            continue
                         if pbar is not None:
                             pbar.update(time - pbar.n)
                         if callback is not None:
