@@ -35,7 +35,8 @@ def Extract(path: Path, folder: Path) -> list[Path]:
             shell=True)
         try:
             with open(path, 'rb') as f:
-                pipeObj.stdin.write(f.read())
+                while chunk := f.read(1024 * 1024):
+                    pipeObj.stdin.write(chunk)
         except BrokenPipeError:
             pass
         pipeObj.stdin.close()
