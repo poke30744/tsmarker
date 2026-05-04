@@ -12,7 +12,7 @@ pipeline {
             agent {
                 docker {
                     label 'linux'
-                    image 'ghcr.io/astral-sh/uv:python3.9-bookworm'
+                    image 'ghcr.io/astral-sh/uv:python3.13-bookworm'
                 }
             }
             steps {
@@ -32,7 +32,7 @@ pipeline {
             agent {
                 docker {
                     label 'linux'
-                    image 'ghcr.io/astral-sh/uv:python3.9-bookworm'
+                    image 'ghcr.io/astral-sh/uv:python3.13-bookworm'
                     args '-e HOME=/var/jenkins_home_tmp --tmpfs /var/jenkins_home_tmp:exec'
                 }
             }
@@ -44,10 +44,8 @@ pipeline {
                         --extra-index-url https://test.pypi.org/simple \
                         --index-strategy unsafe-best-match \
                         dist/tsmarker-0.1.$BUILD_NUMBER-py3-none-any.whl
-                    uv run python -m tsmarker.ensemble -h
-                    #uv run python -m tsmarker.logo -h
-                    #uv run python -m tsmarker.marker -h
-                    uv run python -m tsmarker.subtitles -h
+                    uv run tsmarker --help
+                    uv run tsmarker get-program-clips -h
                 '''
             }
         }
@@ -58,7 +56,7 @@ pipeline {
             agent {
                 docker {
                     label 'linux'
-                    image 'ghcr.io/astral-sh/uv:python3.9-bookworm'
+                    image 'ghcr.io/astral-sh/uv:python3.13-bookworm'
                     args '-e HOME=/var/jenkins_home_tmp --tmpfs /var/jenkins_home_tmp:exec'
                 }
             }

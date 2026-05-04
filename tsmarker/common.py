@@ -1,8 +1,10 @@
-import json, shutil, subprocess, copy
+import json, logging, shutil, subprocess, copy
 from pathlib import Path
 from typing import Tuple
 import numpy as np
 from tscutter.common import ClipToFilename, PtsMap
+
+logger = logging.getLogger('tsmarker.common')
 
 class MarkerMap:    
     def __init__(self, path: Path, ptsMap: PtsMap) -> None:
@@ -76,4 +78,70 @@ class MarkerMap:
         if hasSubtitles > 0.5:
             newStem += '.S'
         return str(name.with_stem(newStem))
+
+
+def _auto_by_method(marker_map: MarkerMap) -> str:
+    props = marker_map.Properties()
+    if '_groundtruth' in props:
+        return '_groundtruth'
+    elif '_ensemble' in props:
+        return '_ensemble'
+    else:
+        return 'subtitles'
+
+
+def _merge_neighbors(clips: list) -> list:
+    merged = []
+    for clip in clips:
+        if not merged:
+            merged.append(list(clip))
+        elif merged[-1][1] == clip[0]:
+            merged[-1][1] = clip[1]
+        else:
+            merged.append(list(clip))
+    return [tuple(c) for c in merged]
+
+
+def _clips_duration(clips: list) -> float:
+    return sum(clip[1] - clip[0] for clip in clips)
+
+
+def _split_clips(clips: list, num: int) -> list[list]:
+    program_clips = list(clips)
+    mean_duration = _clips_duration(program_clips) / num
+    groups = []
+    for i in range(num):
+        group = []
+        min_distance = mean_duration
+        while program_clips:
+            group.append(program_clips.pop(0))
+            distance = abs(_clips_duration(group) - mean_duration)
+            if distance >= min_distance:
+                program_clips.insert(0, group.pop())
+                break
+            else:
+                min_distance = distance
+        groups.append(group)
+    groups[-1].extend(program_clips)
+    return groups
+
+
+def get_program_clips(marker_path: Path, ptsmap_path: Path, by: str = 'auto', split: int = 1, by_group: bool = False) -> dict:
+    ptsmap = PtsMap(ptsmap_path)
+    marker_map = MarkerMap(marker_path, ptsmap)
+
+    method = by if by != 'auto' else _auto_by_method(marker_map)
+    all_clips = marker_map.Clips()
+    program_clips = [clip for clip in all_clips if marker_map.Value(clip, method) > 0.5]
+
+    merged = _merge_neighbors(program_clips)
+
+    if by_group:
+        groups = [[clip] for clip in merged]
+    elif split > 1:
+        groups = _split_clips(merged, split)
+    else:
+        groups = [merged]
+
+    return {'groups': groups, 'by_method': method}
 
