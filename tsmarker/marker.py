@@ -83,13 +83,13 @@ def cut(ctx, by, input, index, marker, output):
     markerMap.Cut(videoPath=videoPath, byMethod=by_method, outputFolder=outputFolder, progress=ctx.obj['progress'])
 
 
-@cli.command()
+@cli.command(name='groundtruth')
 @click.option('--input', '-i', required=True, help='Input mpegts path')
 @click.option('--index', help='Mpegts index path (.ptsmap)')
 @click.option('--marker', help='Output marker file path (.markermap)')
 @click.option('--clips', '-c', help='Clips folder')
 @click.pass_context
-def groundtruth(ctx, input, index, marker, clips):
+def groundtruth_cmd(ctx, input, index, marker, clips):
     """Update groundtruth in .markermap after manual adjustment."""
     videoPath = Path(input)
     ptsPath = Path(index) if index else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
