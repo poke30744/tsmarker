@@ -555,7 +555,7 @@ tsmarker mark --method ensemble --input video.ts --rules rules.yaml --no-llm
 3. 实现贪心处理策略和缓存优化机制
 4. 集成LLM Agent决策循环和工具调用
 5. 最后进行CLI集成和ensemble模块重构
-6. **注意**：speech模块将单独进行LLM化改造（见SPEECH_MODULE_DESIGN.md）
+6. **注意**：speech模块将单独进行LLM化改造（见docs/SPEECH_MODULE_DESIGN.md）
 
 **文档版本**：3.0  
 **最后更新**：2026-04-17  

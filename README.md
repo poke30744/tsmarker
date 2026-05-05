@@ -5,7 +5,7 @@ Mark commercial/program segments in MPEG2-TS video files using multiple detectio
 ## CLI Commands
 
 ```
-tsmarker [--quiet] {mark,cut,groundtruth,extract-clips,get-program-clips,extract-logo,crop-detect,prepare-subtitles,ensemble-dataset,ensemble-train,ensemble-predict} ...
+tsmarker [--quiet] [--progress] COMMAND [ARGS]...
 ```
 
 | Command | Description | Input | Output |
@@ -27,7 +27,7 @@ tsmarker [--quiet] {mark,cut,groundtruth,extract-clips,get-program-clips,extract
 `--method`: `subtitles`, `clipinfo`, `logo`, `speech`
 
 ```bash
-tsmarker mark --method subtitles clipinfo logo speech -i video.ts -x index.ptsmap -m output.markermap
+tsmarker mark --method subtitles --method clipinfo --method logo --method speech -i video.ts -x index.ptsmap -m output.markermap
 ```
 
 ## Dependencies

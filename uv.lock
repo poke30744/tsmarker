@@ -154,6 +154,18 @@ wheels = [
 ]
 
 [[package]]
+name = "click"
+version = "8.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bb/63/f9e1ea081ce35720d8b92acde70daaedace594dc93b693c869e0d5910718/click-8.3.3.tar.gz", hash = "sha256:398329ad4837b2ff7cbe1dd166a4c0f8900c3ca3a218de04466f38f6497f18a2", size = 328061, upload-time = "2026-04-22T15:11:27.506Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/44/c1221527f6a71a01ec6fbad7fa78f1d50dfa02217385cf0fa3eec7087d59/click-8.3.3-py3-none-any.whl", hash = "sha256:a2bf429bb3033c89fa4936ffb35d5cb471e3719e1f3c8a7c3fff0b8314305613", size = 110502, upload-time = "2026-04-22T15:11:25.044Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -999,7 +1011,8 @@ wheels = [
 
 [[package]]
 name = "tscutter"
-source = { editable = "../tscutter" }
+version = "0.1.119"
+source = { registry = "https://test.pypi.org/simple/" }
 dependencies = [
     { name = "audioop-lts" },
     { name = "ffmpeg-python" },
@@ -1009,25 +1022,15 @@ dependencies = [
     { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "rich" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "audioop-lts", marker = "python_full_version >= '3.13'" },
-    { name = "ffmpeg-python" },
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "pydub" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'" },
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "rich" },
+wheels = [
+    { url = "https://test-files.pythonhosted.org/packages/0a/86/5b1cf1b2b02b195b72f4f072a917fb8e2918160cd103c52ecce62479e999/tscutter-0.1.119-py3-none-any.whl", hash = "sha256:49130c23b9876635aa6c7e9de25b6eb9d33f6c4047b87254a647a11173125d77", size = 23490, upload-time = "2026-05-05T08:33:46.914Z" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "tsmarker"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "openai" },
     { name = "opencv-python-headless" },
     { name = "pandas" },
@@ -1049,6 +1052,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click" },
     { name = "openai", specifier = ">=2.31.0" },
     { name = "opencv-python-headless" },
     { name = "pandas" },
@@ -1061,7 +1065,7 @@ requires-dist = [
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "speechrecognition" },
-    { name = "tscutter", editable = "../tscutter" },
+    { name = "tscutter", index = "https://test.pypi.org/simple/" },
 ]
 provides-extras = ["dev"]
 

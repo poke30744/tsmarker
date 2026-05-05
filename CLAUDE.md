@@ -24,7 +24,7 @@ All commands via the `tsmarker` console script:
 
 ```bash
 # Mark clips by method(s)
-tsmarker mark --method subtitles clipinfo logo speech -i video.ts -x index.ptsmap -m output.markermap
+tsmarker mark --method subtitles --method clipinfo --method logo --method speech -i video.ts -x index.ptsmap -m output.markermap
 
 # Cut using auto-detected method (_groundtruth > _ensemble > subtitles)
 tsmarker cut --input video.ts --index index.ptsmap --marker output.markermap --output clips/
