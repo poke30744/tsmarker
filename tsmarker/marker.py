@@ -35,7 +35,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
             speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
     return markerPath
 
-@click.group()
+@click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.option('--quiet', '-q', is_flag=True, help='Suppress non-error output')
 @click.option('--progress', is_flag=True, help='Output PROGRESS JSON lines for pipeline orchestration')
 @click.pass_context
