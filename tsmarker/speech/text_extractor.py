@@ -3,7 +3,6 @@ from pathlib import Path
 import shutil
 import tempfile
 import json
-from tqdm import tqdm
 import speech_recognition as sr
 
 from tscutter.ffmpeg import InputFile
@@ -29,7 +28,6 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
             toWav=True,
             videoTracks=[],
             audioTracks=[0],
-            quiet=True,
         )
         audioFilename = Path(tmpFolder) / "audio_0.wav"
         try:
@@ -44,22 +42,15 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
         return ""
 
 
-def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
-    """
-    Prepare subtitle files, including extracting original subtitles and generating speech-to-text subtitles
+def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
+    """Prepare subtitle files: extract original subtitles and generate speech-to-text."""
 
-    Returns:
-        originalSubtitlesPath: Original subtitle file path
-        generatedSubtitlesPath: Generated subtitle file path
-    """
     originalSubtitlesPath = ptsMap.path.with_suffix(".ass.original")
     generatedSubtitlesPath = ptsMap.path.with_suffix(".assgen")
 
-    # If files already exist, return directly
     if originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
         return originalSubtitlesPath, generatedSubtitlesPath
 
-    # Extract original subtitles
     if not originalSubtitlesPath.exists():
         with tempfile.TemporaryDirectory(prefix="ExtractSubtitles_") as tmpFolder:
             for sub in Extract(videoPath, Path(tmpFolder)):
@@ -67,7 +58,6 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
                     shutil.copy(sub, originalSubtitlesPath)
                     break
 
-    # Extract text for each clip
     clips = ptsMap.Clips()
     textList = (
         [ExtractSubtitlesText(originalSubtitlesPath, clip) for clip in clips]
@@ -75,14 +65,19 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, quiet: bool = False):
         else [""] * len(clips)
     )
 
-    # For clips without subtitles, extract from audio
     generatedSubtitles = {}
-    for i in tqdm(range(len(clips))):
+    tid = "speech_to_text"
+    if progress is not None:
+        progress.add_task(tid, len(clips), "Speech-to-text")
+    for i, clip in enumerate(clips):
         if textList[i] == "":
             textList[i] = ExtractAudioText(videoPath, clips[i])
             generatedSubtitles[str(clips[i])] = textList[i]
+        if progress is not None:
+            progress.update(tid, i + 1)
+    if progress is not None:
+        progress.done(tid)
 
-    # Save generated subtitles
     with generatedSubtitlesPath.open("w") as f:
         json.dump(generatedSubtitles, f, ensure_ascii=False, indent=True)
 

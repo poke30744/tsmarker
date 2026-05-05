@@ -6,7 +6,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import hashlib
-from tqdm import tqdm
+from ._progress import Progress
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
@@ -71,40 +71,51 @@ def LoadFeaturesFromVideo(path: Path, normalize: bool=False) -> list[dict[str, f
 
     return result
     
-def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, quiet: bool=False):
+def CreateDataset(folder: Path, csvPath: Path, normalize: bool=False, progress=None):
     if csvPath.exists():
-        # load existing csv
         df = pd.read_csv(csvPath)
         existingVideoFiles = df['_filename'].unique().tolist()
     else:
         df = pd.DataFrame()
         existingVideoFiles = []
 
-    # find video files
     videoFiles = []
     videoFilesPathMap: dict[str, Path] = {}
-    for path in tqdm(Path(folder).glob('**/*.mp4'), desc='Searching *.mp4 ...'):
+    mp4_paths = list(Path(folder).glob('**/*.mp4'))
+    tid_search = "search_mp4"
+    if progress is not None:
+        progress.add_task(tid_search, len(mp4_paths), "Searching *.mp4")
+    for i, path in enumerate(mp4_paths):
         videoFile = path.stem.replace('_trimmed', '').replace('_prog', '')
         videoFiles.append(videoFile)
         videoFilesPathMap[videoFile] = path
+        if progress is not None:
+            progress.update(tid_search, i + 1)
+    if progress is not None:
+        progress.done(tid_search)
     logger.info(f'Found {len(videoFiles)} video files.')
 
-    # find updated files
     commonVideoFiles = set(existingVideoFiles) & set(videoFiles)
     newVideoFiles = set(videoFiles) - commonVideoFiles
 
-    # keep only common files
     if len(commonVideoFiles) > 0:
         df = df[df['_filename'].isin(commonVideoFiles)]
-    
-    # load features from new files
-    for videoFile in tqdm(newVideoFiles, desc='loading features from updated files ...'):
+
+    new_list = list(newVideoFiles)
+    tid_load = "load_features"
+    if progress is not None and new_list:
+        progress.add_task(tid_load, len(new_list), "Loading features")
+    for i, videoFile in enumerate(new_list):
         path = videoFilesPathMap[videoFile]
         features = LoadFeaturesFromVideo(path, normalize)
         if len(features) == 0:
             df = pd.concat([df, pd.DataFrame({"_filename": [videoFile]})], ignore_index=True)
         else:
             df = pd.concat([df, pd.DataFrame(features)], ignore_index=True)
+        if progress is not None:
+            progress.update(tid_load, i + 1)
+    if progress is not None and new_list:
+        progress.done(tid_load)
 
     if df is not None and csvPath is not None:
         df.to_csv(csvPath, encoding='utf-8-sig', index=False)
@@ -128,7 +139,7 @@ def LoadDataset(csvPath, columnsToExclude=[]):
     target = df['_groundtruth'].to_numpy()
     return { 'data': data, 'target': target, 'columns': columns }
 
-def Train(dataset, random_state=0, test_size=0.3, quiet=False):
+def Train(dataset, random_state=0, test_size=0.3, progress=None):
     X, y = dataset['data'], dataset['target']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
@@ -136,18 +147,27 @@ def Train(dataset, random_state=0, test_size=0.3, quiet=False):
     weight_test = compute_sample_weight(class_weight='balanced', y=y_test)
 
     best_n, best_score = 0, 0
-    for n in tqdm(range(1000, 1001), desc='Training ...'):
+    tid = "training"
+    # Note: original range was 1000-1001 (single iteration), kept as-is
+    n_range = range(1000, 1001)
+    if progress is not None:
+        progress.add_task(tid, len(list(n_range)), "Training ensemble")
+    for i, n in enumerate(n_range):
         clf = AdaBoostClassifier(n_estimators=n, random_state=random_state)
         clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
-        score = clf.score(X_test, y_test, sample_weight=weight_test) # type: ignore
+        score = clf.score(X_test, y_test, sample_weight=weight_test)
         if best_score < score:
             best_score = score
             best_n = n
+        if progress is not None:
+            progress.update(tid, i + 1)
+    if progress is not None:
+        progress.done(tid)
 
     logger.info(f'Best n: {best_n}, Best score: {best_score}')
-    
+
     clf = AdaBoostClassifier(n_estimators=best_n, random_state=random_state)
-    clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))    
+    clf.fit(X_train, y_train, sample_weight=np.copy(weight_train))
     return clf
 
 class MarkerMap(common.MarkerMap):
@@ -188,7 +208,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     if args.command == 'dataset':
         CreateDataset(folder=Path(args.input), csvPath=Path(args.output))

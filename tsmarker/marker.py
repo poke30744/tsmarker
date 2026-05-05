@@ -1,6 +1,8 @@
 import argparse, json, logging, sys
 from pathlib import Path
+from rich.logging import RichHandler
 from tscutter.common import PtsMap
+from ._progress import Progress
 from . import subtitles
 from . import clipinfo
 from . import logo
@@ -14,7 +16,7 @@ from . import ensemble
 
 logger = logging.getLogger('tsmarker.marker')
 
-def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False, logoPath=None):
+def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath=None):
     videoPath = Path(videoPath)
     indexPath = Path(indexPath) if indexPath else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
     markerPath = Path(markerPath) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
@@ -23,19 +25,20 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, quiet=False, logoPath=N
     ptsMap = PtsMap(indexPath)
     for method in methods:
         if method == 'subtitles':
-            subtitles.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
+            subtitles.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'logo':
-            logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, logoPath=Path(logoPath) if logoPath else None, quiet=quiet)
+            logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, logoPath=Path(logoPath) if logoPath else None, progress=progress)
         elif method == 'clipinfo':
-            clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, quiet=quiet)
+            clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'speech':
-            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath)
+            speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
     return markerPath
 
 def main():
     parser = argparse.ArgumentParser(description='Python tool to mark CMs in mpegts')
     
-    parser.add_argument('--quiet', '-q', action='store_true', help="don't output to the console")
+    parser.add_argument('--quiet', '-q', action='store_true', help='suppress non-error output')
+    parser.add_argument('--progress', action='store_true', help='output PROGRESS JSON lines for pipeline orchestration')
 
     subparsers = parser.add_subparsers(required=True, title='subcommands', dest='command')
 
@@ -107,13 +110,12 @@ def main():
 
     args = parser.parse_args()
 
-    # Configure logging
     log_level = logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(
-        level=log_level,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+        level=log_level, format='%(message)s', datefmt='[%X]',
+        handlers=[RichHandler(rich_tracebacks=True)])
+
+    progress = Progress(use_protocol=args.progress)
 
     if args.command == 'extract-logo':
         ExtractLogoPipeline(
@@ -122,7 +124,7 @@ def main():
             outFile=Path(args.output),
             maxTimeToExtract=args.max_time,
             removeBoarder=not args.no_remove_border,
-            quiet=args.quiet,
+            progress=progress,
         )
 
     elif args.command == 'crop-detect':
@@ -132,7 +134,7 @@ def main():
         print(json.dumps(crop))
 
     elif args.command == 'prepare-subtitles':
-        PrepareSubtitles(Path(args.input), PtsMap(Path(args.index)), quiet=args.quiet)
+        PrepareSubtitles(Path(args.input), PtsMap(Path(args.index)), progress=progress)
 
     elif args.command == 'ensemble-dataset':
         import pandas as pd
@@ -140,7 +142,7 @@ def main():
             folder=Path(args.input),
             csvPath=Path(args.output),
             normalize=not args.no_normalize,
-            quiet=args.quiet,
+            progress=progress,
         )
         if df is not None:
             logger.info(f'Dataset created: {args.output}')
@@ -150,7 +152,7 @@ def main():
     elif args.command == 'ensemble-train':
         dataset = ensemble.LoadDataset(csvPath=Path(args.input))
         columns = dataset['columns']
-        clf = ensemble.Train(dataset, random_state=args.random_state, test_size=args.test_size, quiet=args.quiet)
+        clf = ensemble.Train(dataset, random_state=args.random_state, test_size=args.test_size, progress=progress)
         import pickle
         with open(args.output, 'wb') as f:
             pickle.dump((clf, columns), f)
@@ -191,12 +193,12 @@ def main():
             sys.exit(2)
         clips = json.loads(args.clips)
         if args.output_dir:
-            extract_clips_to_dir(ts_path, ptsmap, clips, Path(args.output_dir), quiet=args.quiet)
+            extract_clips_to_dir(ts_path, ptsmap, clips, Path(args.output_dir), progress=progress)
         else:
-            extract_clips_stdout(ts_path, ptsmap, clips, quiet=args.quiet)
+            extract_clips_stdout(ts_path, ptsmap, clips, progress=progress)
 
     elif args.command == 'mark':
-        MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.marker, methods=args.method, quiet=args.quiet, logoPath=args.logo)
+        MarkVideo(videoPath=args.input, indexPath=args.index, markerPath=args.marker, methods=args.method, progress=progress, logoPath=args.logo)
     elif args.command == 'cut':
         videoPath = Path(args.input)
         ptsPath = Path(args.index) if args.index is not None else videoPath.parent / '_metadata' / videoPath.with_suffix('.ptsmap').name
@@ -205,7 +207,7 @@ def main():
         ptsMap = PtsMap(ptsPath)
         markerMap = MarkerMap(markerPath, ptsMap)
         by_method = args.by if args.by != 'auto' else _auto_by_method(markerMap)
-        markerMap.Cut(videoPath=videoPath, byMethod=by_method, outputFolder=outputFolder)
+        markerMap.Cut(videoPath=videoPath, byMethod=by_method, outputFolder=outputFolder, progress=progress)
     elif args.command == 'groundtruth':
         videoPath = Path(args.input)
         ptsPath = Path(args.index) if args.index else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')

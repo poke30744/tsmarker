@@ -70,4 +70,4 @@ tsmarker ensemble-predict --model model.pkl --index index.ptsmap --marker output
 - **LLM API** — speech marking uses OpenAI-compatible API (`OPENAI_API_KEY`, `OPENAI_API_BASE`, `OPENAI_MODEL` env vars)
 - **tscutter CLI** — needed for `list-clips`, `select-clips`, `probe` subcommands
 - **ffmpeg/ffprobe** — must be in PATH
-- Python: scikit-learn, opencv-python, pandas, pysubs2, SpeechRecognition, openai, requests, PyYAML, python-dotenv
+- Python: rich, scikit-learn, opencv-python, pandas, pysubs2, SpeechRecognition, openai, requests, PyYAML, python-dotenv

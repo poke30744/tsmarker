@@ -1,7 +1,6 @@
 import tempfile, subprocess, io, logging, os, argparse
 from pathlib import Path
 from threading import Thread
-from tqdm import tqdm
 import numpy as np
 from PIL import Image
 import cv2 as cv
@@ -17,7 +16,7 @@ def cv2imread(filename, flags=cv.IMREAD_COLOR, dtype=np.uint8):
         img = cv.imdecode(n, flags)
         return img
     except Exception as e:
-        print(e)
+        logger.error(f'cv2imread failed: {e}')
         return None
 
 def cv2imwrite(filename, img, params=None):
@@ -31,7 +30,7 @@ def cv2imwrite(filename, img, params=None):
         else:
             return False
     except Exception as e:
-        print(e)
+        logger.error(f'cv2imwrite failed: {e}')
         return False
 
 def RemoveBoarder(edges, threshold=0.2):
@@ -73,7 +72,8 @@ class InputFile(ffmpeg.InputFile):
         args += [ f'{folder}/out%8d.bmp' ]
         return args
 
-    def HandleFFmpegProgress(lines, pbar=None, callback=None):
+    def HandleFFmpegProgress(lines, callback=None, progress=None, tid=None):
+        last_time = 0.0
         for line in lines:
             if 'time=' in line:
                 for item in line.split(' '):
@@ -83,30 +83,26 @@ class InputFile(ffmpeg.InputFile):
                             time = float(timeFields[0]) * 3600 + float(timeFields[1]) * 60 + float(timeFields[2])
                         except ValueError:
                             continue
-                        if pbar is not None:
-                            pbar.update(time - pbar.n)
+                        if progress is not None and tid is not None:
+                            progress.update(tid, time)
+                        last_time = time
                         if callback is not None:
                             callback()
-        if pbar is not None:
-            pbar.update(pbar.total - pbar.n)
-        if callback is not None:
-            callback()
+        if progress is not None and tid is not None:
+            progress.done(tid)
 
-    def HandleFFmpegLog(info, lines, pbar=None, callback=None) -> None:
-        if str(pbar) == 'auto':
-            if info.duration is not None:
-                with tqdm(total=info.duration, unit='SECONDs', unit_scale=True) as pbar:
-                    InputFile.HandleFFmpegProgress(lines, pbar, callback)
-            else:
-                InputFile.HandleFFmpegProgress(lines, None, callback)
-        else:
-            InputFile.HandleFFmpegProgress(lines, pbar, callback)
+    def HandleFFmpegLog(info, lines, callback=None, progress=None) -> None:
+        tid = None
+        if progress is not None and info.duration is not None:
+            tid = "ffmpeg_logo"
+            progress.add_task(tid, info.duration, "Extracting logo frames", unit="s")
+        InputFile.HandleFFmpegProgress(lines, callback=callback, progress=progress, tid=tid)
 
-    def ExtractMeanImagePipe(self, ptsMap: PtsMap, clip: tuple[float], outFile: Path, quiet: bool=False):
+    def ExtractMeanImagePipe(self, ptsMap: PtsMap, clip: tuple[float], outFile: Path, progress=None):
         info = self.GetInfo()
         with tempfile.TemporaryDirectory(prefix='LogoPipeline_') as tmpFolder:
             with subprocess.Popen(self.ExtractAreaPipeCmd('-', tmpFolder), stdin=subprocess.PIPE, stderr=subprocess.PIPE) as extractAreaP:
-                thread = Thread(target=ptsMap.ExtractClipPipe, args=(self.path, clip, extractAreaP.stdin, quiet))
+                thread = Thread(target=ptsMap.ExtractClipPipe, args=(self.path, clip, extractAreaP.stdin, progress))
                 thread.start()
 
                 class LogoGenerator:
@@ -121,10 +117,10 @@ class InputFile(ffmpeg.InputFile):
                             path.unlink()
                     def Save(self, path):
                         Image.fromarray((self.picSum/self.count).astype(np.uint8)).save(str(path))
-                        
+
                 logoGenerator = LogoGenerator()
                 try:
-                    InputFile.HandleFFmpegLog(info=info, lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback)                 
+                    InputFile.HandleFFmpegLog(info=info, lines=io.TextIOWrapper(extractAreaP.stderr, errors='ignore'), callback=logoGenerator.Callback, progress=progress)
                 except (IndexError, UnboundLocalError):
                     raise InvalidTsFormat(f'"{self.path.name}" is invalid!')
                 if logoGenerator.count > 0:
@@ -134,8 +130,7 @@ class InputFile(ffmpeg.InputFile):
 
                 thread.join()
 
-def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToExtract=120, removeBoarder: bool=True, quiet: bool=False) -> None:
-    # calculate the logo of the entire video
+def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToExtract=120, removeBoarder: bool=True, progress=None) -> None:
     selectedClips, selectedLen = ptsMap.SelectClips()
     if selectedLen == 0:
         selectedClips, selectedLen = ptsMap.SelectClips(lengthLimit=15)
@@ -144,13 +139,12 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
     with tempfile.TemporaryDirectory(prefix='ExtractLogoPipeline_') as tmpFolder:
         clip = max(selectedClips, key=lambda clip: clip[1] - clip[0])
         logoPath = tmpFolder / Path(ClipToFilename(clip)).with_suffix('.png')
-        # shorten clip to less than maxTimeToExtract seconds
         if clip[1] - clip[0] > maxTimeToExtract:
             padding = (clip[1] - clip[0] - maxTimeToExtract) / 2
             clip = (padding + clip[0], padding + clip[0] + maxTimeToExtract)
         logger.info(f'Extracting logo from {inFile.name}: {clip} ...')
         inputFile = InputFile(inFile)
-        inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, quiet)
+        inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, progress=progress)
 
         drawEdges(logoPath, outputPath=outFile, removeBoarder=removeBoarder)
 
@@ -184,7 +178,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     if args.command == 'logo':
         inFile = Path(args.input)

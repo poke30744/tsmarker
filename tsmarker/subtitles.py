@@ -67,23 +67,31 @@ def Overlap(range1, range2):
     return (range1[0] <= range2[0] <= range1[1]) or (range2[0] <= range1[0] <= range2[1])
 
 class MarkerMap(common.MarkerMap):
-    def MarkAll(self, videoPath: Path, assPath: Path=None) -> None:
+    def MarkAll(self, videoPath: Path, assPath: Path=None, progress=None) -> None:
         subtitles = None
         with tempfile.TemporaryDirectory(prefix='ExtractSubtitles_') as tmpFolder:
             for p in Extract(videoPath, Path(tmpFolder)):
                 if p.with_suffix('.ass'):
                     subtitles = pysubs2.load(p, encoding='utf-8')
                     break
+        clips = self.Clips()
         if subtitles is not None:
-            for clip in self.Clips():
+            tid = "subtitles_mark"
+            if progress is not None:
+                progress.add_task(tid, len(clips), "Marking subtitles")
+            for i, clip in enumerate(clips):
                 overlap = False
                 for event in subtitles:
                     if Overlap((event.start / 1000, event.end / 1000), (clip[0], clip[1])):
                         overlap = True
                         break
                 self.Mark(clip, 'subtitles', 1.0 if overlap else 0.0)
+                if progress is not None:
+                    progress.update(tid, i + 1)
+            if progress is not None:
+                progress.done(tid)
         else:
-            for clip in self.Clips():
+            for clip in clips:
                 self.Mark(clip, 'subtitles', 0.5)
         self.Save()
 
@@ -93,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument('--input', '-i', required=True, help='input mpegts path')
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(message)s')
 
     path = Path(args.input)
     files = Extract(path, path.parent)

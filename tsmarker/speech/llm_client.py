@@ -45,23 +45,12 @@ class OpenAIClient:
         texts: List[str],
         system_prompt: str,
         user_prompt_template: str,
+        progress=None,
         **prompt_kwargs,
     ) -> List[float]:
-        """
-        Classify texts, returning probability of each text being an advertisement (using conversational mode, processing one clip at a time)
-
-        Args:
-            texts: List of texts
-            system_prompt: System prompt
-            user_prompt_template: User prompt template
-            **prompt_kwargs: Prompt template parameters
-
-        Returns:
-            List of probabilities, range 0.0-1.0
-        """
         if not texts:
             return []
-        return self._classify_iterative(texts, system_prompt, user_prompt_template, **prompt_kwargs)
+        return self._classify_iterative(texts, system_prompt, user_prompt_template, progress=progress, **prompt_kwargs)
 
 
     def _classify_iterative(
@@ -69,13 +58,15 @@ class OpenAIClient:
         texts: List[str],
         system_prompt: str,
         user_prompt_template: str,
+        progress=None,
         **prompt_kwargs,
     ) -> List[float]:
-        """
-        Iteratively classify texts (using conversational mode, system prompt sent only once)
-        """
         probabilities = []
         total = len(texts)
+
+        tid = "speech_llm"
+        if progress is not None:
+            progress.add_task(tid, total, "LLM speech analysis")
 
         # Format system prompt (if it contains placeholders)
         if "{" in system_prompt:
@@ -131,7 +122,11 @@ class OpenAIClient:
             messages.append({"role": "assistant", "content": content})
 
             logger.info(f"Processing clip {idx}/{total}: probability={prob}")
+            if progress is not None:
+                progress.update(tid, idx)
 
+        if progress is not None:
+            progress.done(tid)
         return probabilities
 
     def _log_request(self, system_prompt: str, user_prompt: str, clip_count: int, current_idx: int = None, total: int = None, log_system: bool = True):

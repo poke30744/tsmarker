@@ -1,7 +1,6 @@
 from functools import lru_cache
 import logging, re, json
 from pathlib import Path
-from tqdm import tqdm
 import pysubs2
 
 logger = logging.getLogger('tsmarker.dataset')
