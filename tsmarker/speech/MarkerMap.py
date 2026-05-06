@@ -16,7 +16,7 @@ class MarkerMap(common.MarkerMap):
 
         originalSubtitlesPath = self.path.with_suffix(".ass.original")
         generatedSubtitlesPath = self.path.with_suffix(".assgen")
-        if not originalSubtitlesPath.exists() or not generatedSubtitlesPath.exists():
+        if not originalSubtitlesPath.exists() and not generatedSubtitlesPath.exists():
             PrepareSubtitlesNew(videoPath, self.ptsMap, progress=progress)
 
         clips = self.Clips()
