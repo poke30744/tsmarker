@@ -2,6 +2,7 @@ import json, logging, sys
 from pathlib import Path
 import click
 from rich.logging import RichHandler
+from . import __version__
 from tscutter.common import PtsMap
 from ._progress import Progress
 from . import subtitles
@@ -38,6 +39,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
 @click.option('--quiet', '-q', is_flag=True, help='Suppress non-error output')
 @click.option('--progress', is_flag=True, help='Output PROGRESS JSON lines for pipeline orchestration')
+@click.version_option(__version__, prog_name='tsmarker', message='%(prog)s %(version)s')
 @click.pass_context
 def cli(ctx, quiet, progress):
     """Mark CMs in MPEG-TS files and manage the marker pipeline."""

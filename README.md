@@ -5,7 +5,7 @@ Mark commercial/program segments in MPEG2-TS video files using multiple detectio
 ## CLI Commands
 
 ```
-tsmarker [--quiet] [--progress] COMMAND [ARGS]...
+tsmarker [--quiet] [--progress] [--version] COMMAND [ARGS]...
 ```
 
 | Command | Description | Input | Output |

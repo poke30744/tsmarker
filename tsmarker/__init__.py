@@ -1,11 +1,16 @@
-import os
+from importlib.metadata import version as _version
 
-# 加载.env文件（如果存在）
 try:
-    from dotenv import load_dotenv
+    __version__ = _version("tsmarker")
+except Exception:
+    import os
 
-    load_dotenv()
-except ImportError:
-    pass
+    # 加载.env文件（如果存在）
+    try:
+        from dotenv import load_dotenv
 
-__version__ = f"0.1.{os.getenv('BUILD_NUMBER', '0')}"
+        load_dotenv()
+    except ImportError:
+        pass
+
+    __version__ = f"0.1.{os.getenv('BUILD_NUMBER', '0')}"
