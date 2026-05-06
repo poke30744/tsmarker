@@ -1,4 +1,4 @@
-import tempfile, subprocess, io, logging, os, argparse
+import tempfile, subprocess, io, logging, os, argparse, time
 from pathlib import Path
 from threading import Thread
 import numpy as np
@@ -113,7 +113,15 @@ class InputFile(ffmpeg.InputFile):
                         self.count = 0
                     def Callback(self):
                         for path in Path(tmpFolder).glob('*.bmp'):
-                            image = np.array(Image.open(path)).astype(np.float32)
+                            for retry in range(3):
+                                try:
+                                    image = np.array(Image.open(path)).astype(np.float32)
+                                    break
+                                except OSError:
+                                    if retry < 2:
+                                        time.sleep(1)
+                                    else:
+                                        raise
                             self.picSum = image if self.picSum is None else (self.picSum + image)
                             self.count += 1
                             path.unlink()
