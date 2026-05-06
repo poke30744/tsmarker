@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import json
+import subprocess
 import time
 import speech_recognition as sr
 
@@ -22,17 +23,14 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     recognizer = sr.Recognizer()
     inputFile = InputFile(videoPath)
     with tempfile.TemporaryDirectory(prefix="ExtractAudioText_") as tmpFolder:
-        inputFile.ExtractStream(
-            output=Path(tmpFolder),
-            ss=clip[0],
-            to=clip[1],
-            toWav=True,
-            videoTracks=[],
-            audioTracks=[0],
-        )
-        audioFilename = Path(tmpFolder) / "audio_0.wav"
+        wavPath = Path(tmpFolder) / "audio.wav"
+        subprocess.run(
+            [inputFile.ffmpeg, '-y', '-nostdin', '-loglevel', 'error',
+             '-ss', str(clip[0]), '-to', str(clip[1]), '-i', str(videoPath),
+             '-map', '0:a:0', '-ac', '1', '-ar', '8000', str(wavPath)],
+            check=True)
         try:
-            with sr.AudioFile(str(audioFilename)) as source:
+            with sr.AudioFile(str(wavPath)) as source:
                 audio = recognizer.record(source)
         except ValueError:
             return ""
