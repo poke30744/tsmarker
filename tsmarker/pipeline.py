@@ -88,6 +88,8 @@ class InputFile(ffmpeg.InputFile):
                         last_time = time
                         if callback is not None:
                             callback()
+        if callback is not None:
+            callback()
         if progress is not None and tid is not None:
             progress.done(tid)
 
