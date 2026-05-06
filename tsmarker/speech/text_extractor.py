@@ -3,6 +3,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import json
+import time
 import speech_recognition as sr
 
 from tscutter.ffmpeg import InputFile
@@ -35,11 +36,20 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
                 audio = recognizer.record(source)
         except ValueError:
             return ""
-    try:
-        text = recognizer.recognize_google(audio, language="ja-JP")
-        return text
-    except sr.UnknownValueError:
-        return ""
+    last_error = None
+    for attempt in range(3):
+        try:
+            text = recognizer.recognize_google(audio, language="ja-JP")
+            return text
+        except sr.UnknownValueError:
+            return ""
+        except sr.RequestError as e:
+            last_error = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(
+        f"Speech recognition failed after 3 retries: {last_error}"
+    )
 
 
 def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
