@@ -1,7 +1,5 @@
 import logging
 from pathlib import Path
-import shutil
-import tempfile
 import json
 import subprocess
 import time
@@ -9,7 +7,6 @@ import speech_recognition as sr
 
 from tscutter.ffmpeg import InputFile
 from tscutter.common import PtsMap
-from ..subtitles import Extract
 from .dataset import ExtractSubtitlesText as OriginalExtractSubtitlesText
 
 logger = logging.getLogger("tsmarker.speech.text_extractor")
@@ -51,20 +48,15 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
 
 
 def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
-    """Prepare subtitle files: extract original subtitles and generate speech-to-text."""
+    """Load existing ASS subtitles and generate speech-to-text for clips without text."""
 
     originalSubtitlesPath = ptsMap.path.with_suffix(".ass.original")
+    if not originalSubtitlesPath.exists():
+        originalSubtitlesPath = videoPath.with_suffix(".ass.original")
     generatedSubtitlesPath = ptsMap.path.with_suffix(".assgen")
 
     if originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
         return originalSubtitlesPath, generatedSubtitlesPath
-
-    if not originalSubtitlesPath.exists():
-        with tempfile.TemporaryDirectory(prefix="ExtractSubtitles_") as tmpFolder:
-            for sub in Extract(videoPath, Path(tmpFolder)):
-                if sub.suffix == ".ass":
-                    shutil.copy(sub, originalSubtitlesPath)
-                    break
 
     clips = ptsMap.Clips()
     textList = (

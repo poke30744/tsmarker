@@ -84,10 +84,15 @@ def _auto_by_method(marker_map: MarkerMap) -> str:
     props = marker_map.Properties()
     if '_groundtruth' in props:
         return '_groundtruth'
-    elif '_ensemble' in props:
+    if '_ensemble' in props:
         return '_ensemble'
-    else:
-        return 'subtitles'
+    if 'speech' in props:
+        return 'speech'
+    clips = marker_map.Clips()
+    sub_scores = [marker_map.Value(c, 'subtitles') for c in clips]
+    if all(s == 0.0 or s == 0.5 for s in sub_scores):
+        return 'logo'
+    return 'subtitles'
 
 
 def _merge_neighbors(clips: list) -> list:
@@ -144,4 +149,34 @@ def get_program_clips(marker_path: Path, ptsmap_path: Path, by: str = 'auto', sp
         groups = [merged]
 
     return {'groups': groups, 'by_method': method}
+
+
+def generate_edl(marker_path: Path, ptsmap_path: Path, output_path: Path, by: str = 'auto') -> Path:
+    """Generate Kodi-compatible EDL file from markermap + ptsmap.
+
+    Lists commercial breaks (method score < 0.5) with action=3.
+    MPlayer EDL format: seconds (3 decimal places), space-separated.
+    Ref: https://kodi.wiki/view/Edit_decision_list
+    """
+    ptsmap = PtsMap(ptsmap_path)
+    marker_map = MarkerMap(marker_path, ptsmap)
+
+    method = by if by != 'auto' else _auto_by_method(marker_map)
+    all_clips = marker_map.Clips()
+    cm_clips = [clip for clip in all_clips if marker_map.Value(clip, method) < 0.5]
+
+    with open(ptsmap_path) as f:
+        ptsmap_data = json.load(f)
+
+    lines = ['EDL']
+    for clip in _merge_neighbors(cm_clips):
+        start_sec = ptsmap_data[str(clip[0])]['prev_end_pts']
+        end_sec = ptsmap_data[str(clip[1])]['next_start_pts']
+        lines.append(f'{start_sec:.3f}  {end_sec:.3f}  3')
+
+    with open(output_path, 'w') as f:
+        f.write('\n'.join(lines))
+    return output_path
+
+    return output_path
 

@@ -59,4 +59,4 @@ url = "https://test.pypi.org/simple/"
 explicit = true
 
 [tool.uv.sources]
-tscutter = { index = "testpypi" }
+tscutter = { path = "../tscutter" }

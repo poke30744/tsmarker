@@ -34,6 +34,5 @@ tsmarker mark --method subtitles --method clipinfo --method logo --method speech
 
 - Python ≥3.13
 - tscutter (CLI, used for list-clips/select-clips/probe)
-- Caption2AssC (subtitle extraction)
-- ffmpeg, ffprobe
+- ffmpeg, ffprobe (subtitle extraction via libaribcaption)
 - scikit-learn, opencv-python, pandas, pysubs2, SpeechRecognition, openai, requests

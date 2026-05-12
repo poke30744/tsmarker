@@ -1011,10 +1011,10 @@ wheels = [
 
 [[package]]
 name = "tscutter"
-version = "0.1.119"
-source = { registry = "https://test.pypi.org/simple/" }
+source = { directory = "../tscutter" }
 dependencies = [
     { name = "audioop-lts" },
+    { name = "click" },
     { name = "ffmpeg-python" },
     { name = "numpy" },
     { name = "pillow" },
@@ -1022,9 +1022,21 @@ dependencies = [
     { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "rich" },
 ]
-wheels = [
-    { url = "https://test-files.pythonhosted.org/packages/0a/86/5b1cf1b2b02b195b72f4f072a917fb8e2918160cd103c52ecce62479e999/tscutter-0.1.119-py3-none-any.whl", hash = "sha256:49130c23b9876635aa6c7e9de25b6eb9d33f6c4047b87254a647a11173125d77", size = 23490, upload-time = "2026-05-05T08:33:46.914Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "audioop-lts", marker = "python_full_version >= '3.13'" },
+    { name = "click" },
+    { name = "ffmpeg-python" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pydub" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'dev'" },
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "rich" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "tsmarker"
@@ -1065,7 +1077,7 @@ requires-dist = [
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "speechrecognition" },
-    { name = "tscutter", index = "https://test.pypi.org/simple/" },
+    { name = "tscutter", directory = "../tscutter" },
 ]
 provides-extras = ["dev"]
 

@@ -1,6 +1,5 @@
 import tempfile, subprocess, io, logging, os, argparse, time
 from pathlib import Path
-from threading import Thread
 import numpy as np
 from PIL import Image
 import cv2 as cv
@@ -57,7 +56,7 @@ def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, aperture
     return outputPath
 
 class InputFile(ffmpeg.InputFile):
-    def ExtractAreaPipeCmd(self, inFile, folder, crop=None, ss=None, to=None, fps='1/1'):
+    def ExtractAreaCmd(self, inFile, folder, crop=None, ss=None, to=None, fps='1/1'):
         args = [ self.ffmpeg, '-hide_banner' ]
         if ss is not None and to is not None:
             args += [ '-ss', str(ss), '-to', str(to) ]
@@ -100,12 +99,10 @@ class InputFile(ffmpeg.InputFile):
             progress.add_task(tid, info.duration, "Extracting logo frames", unit="s")
         InputFile.HandleFFmpegProgress(lines, callback=callback, progress=progress, tid=tid)
 
-    def ExtractMeanImagePipe(self, ptsMap: PtsMap, clip: tuple[float], outFile: Path, progress=None):
+    def ExtractMeanImage(self, clip: tuple[float], outFile: Path, progress=None):
         info = self.GetInfo()
         with tempfile.TemporaryDirectory(prefix='LogoPipeline_') as tmpFolder:
-            with subprocess.Popen(self.ExtractAreaPipeCmd('-', tmpFolder), stdin=subprocess.PIPE, stderr=subprocess.PIPE) as extractAreaP:
-                thread = Thread(target=ptsMap.ExtractClipPipe, args=(self.path, clip, extractAreaP.stdin, progress))
-                thread.start()
+            with subprocess.Popen(self.ExtractAreaCmd(str(self.path), tmpFolder, ss=clip[0], to=clip[1]), stderr=subprocess.PIPE) as extractAreaP:
 
                 class LogoGenerator:
                     def __init__(self):
@@ -138,8 +135,6 @@ class InputFile(ffmpeg.InputFile):
                 else:
                     Image.new("RGB", (info.width, info.height), (0, 0, 0)).save(str(outFile))
 
-                thread.join()
-
 def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToExtract=120, removeBoarder: bool=True, progress=None) -> None:
     selectedClips, selectedLen = ptsMap.SelectClips()
     if selectedLen == 0:
@@ -154,9 +149,10 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
             clip = (padding + clip[0], padding + clip[0] + maxTimeToExtract)
         logger.info(f'Extracting logo from {inFile.name}: {clip} ...')
         inputFile = InputFile(inFile)
-        inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, progress=progress)
+        inputFile.ExtractMeanImage(clip, logoPath, progress=progress)
 
-        drawEdges(logoPath, outputPath=outFile, removeBoarder=removeBoarder)
+        import shutil
+        shutil.copy(logoPath, outFile)
 
 def CropDetectPipeline(videoEdgePath, threshold=0.3):
     videoEdges = np.array(Image.open(videoEdgePath))

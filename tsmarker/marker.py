@@ -11,7 +11,6 @@ from . import logo
 from . import speech
 from . import groundtruth
 from .common import MarkerMap, get_program_clips, _auto_by_method
-from .clip_utils import extract_clips_stdout, extract_clips_to_dir
 from .pipeline import ExtractLogoPipeline, CropDetectPipeline
 from .speech.text_extractor import PrepareSubtitles
 from . import ensemble
@@ -46,7 +45,7 @@ def cli(ctx, quiet, progress):
     log_level = logging.WARNING if quiet else logging.INFO
     logging.basicConfig(
         level=log_level, format='%(message)s', datefmt='[%X]',
-        handlers=[RichHandler(rich_tracebacks=True)])
+        handlers=[RichHandler(rich_tracebacks=sys.stderr.isatty())])
     ctx.ensure_object(dict)
     ctx.obj['progress'] = Progress(use_protocol=progress)
 
@@ -59,11 +58,15 @@ def cli(ctx, quiet, progress):
 @click.option('--index', help='Mpegts index path (.ptsmap)')
 @click.option('--marker', help='Output marker file path (.markermap)')
 @click.option('--logo', help='Logo image path')
+@click.option('--edl', help='Output EDL file path (Kodi-compatible)')
 @click.pass_context
-def mark(ctx, method, input, index, marker, logo):
+def mark(ctx, method, input, index, marker, logo, edl):
     """Mark CM clips in the mpegts file using specified detection methods."""
     MarkVideo(videoPath=input, indexPath=index, markerPath=marker,
               methods=list(method), progress=ctx.obj['progress'], logoPath=logo)
+    if edl:
+        from .common import generate_edl
+        generate_edl(Path(marker), Path(index), Path(edl))
 
 
 @cli.command()
@@ -90,41 +93,19 @@ def cut(ctx, by, input, index, marker, output):
 @click.option('--index', help='Mpegts index path (.ptsmap)')
 @click.option('--marker', help='Output marker file path (.markermap)')
 @click.option('--clips', '-c', help='Clips folder')
+@click.option('--edl', help='Output EDL file path (regenerated after groundtruth)')
 @click.pass_context
-def groundtruth_cmd(ctx, input, index, marker, clips):
+def groundtruth_cmd(ctx, input, index, marker, clips, edl):
     """Update groundtruth in .markermap after manual adjustment."""
     videoPath = Path(input)
     ptsPath = Path(index) if index else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
     markerPath = Path(marker) if marker else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
     clipsFolder = Path(clips) if clips else videoPath.with_suffix('')
     reEncodeNeeded = groundtruth.MarkerMap(markerPath, PtsMap(ptsPath)).MarkAll(clipsFolder)
+    if edl:
+        from .common import generate_edl
+        generate_edl(markerPath, ptsPath, Path(edl), by='_groundtruth')
     print(json.dumps({'re_encode_needed': reEncodeNeeded}))
-
-
-@cli.command()
-@click.option('--input', '-i', required=True, help='Input mpegts path')
-@click.option('--index', '-x', required=True, help='.ptsmap file path')
-@click.option('--clips', '-c', required=True, help='Clips JSON array, e.g. \'[[0.0,100.5],[200.0,350.8]]\'')
-@click.option('--output-dir', '-o', help='Output directory for individual .ts files (stdout if omitted)')
-@click.pass_context
-def extract_clips(ctx, input, index, clips, output_dir):
-    """Extract TS clips by byte range from .ptsmap."""
-    ts_path = Path(input)
-    pts_path = Path(index)
-    try:
-        pts_data = pts_path.read_bytes()
-        ptsmap = json.loads(pts_data)
-    except FileNotFoundError:
-        print(f'FileNotFoundError: {index}', file=sys.stderr)
-        sys.exit(1)
-    except (json.JSONDecodeError, KeyError):
-        print(f'InvalidIndexFormat: {index}', file=sys.stderr)
-        sys.exit(2)
-    clips_data = json.loads(clips)
-    if output_dir:
-        extract_clips_to_dir(ts_path, ptsmap, clips_data, Path(output_dir), progress=ctx.obj['progress'])
-    else:
-        extract_clips_stdout(ts_path, ptsmap, clips_data, progress=ctx.obj['progress'])
 
 
 @cli.command(name='get-program-clips')
@@ -238,6 +219,18 @@ def ensemble_predict(model, index, marker, normalize, dry_run):
     ensemble.MarkerMap(marker_path, ptsmap).MarkAll(model_tuple, normalize=normalize)
     if dry_run:
         logger.info('Dry run — no changes written')
+
+
+@cli.command(name='generate-edl')
+@click.option('--marker', '-m', required=True, help='.markermap file path')
+@click.option('--index', '-x', required=True, help='.ptsmap file path')
+@click.option('--output', '-o', required=True, help='Output EDL file path')
+@click.option('--by', '-b', default='auto', show_default=True, help='Selection method')
+def generate_edl_cmd(marker, index, output, by):
+    """Generate Kodi-compatible EDL from .markermap + .ptsmap."""
+    from .common import generate_edl
+    result = generate_edl(Path(marker), Path(index), Path(output), by=by)
+    print(f'EDL written to {result}')
 
 
 def main():
