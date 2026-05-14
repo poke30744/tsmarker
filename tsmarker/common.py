@@ -2,7 +2,7 @@ import json, logging, shutil, subprocess, copy
 from pathlib import Path
 from typing import Tuple
 import numpy as np
-from tscutter.common import ClipToFilename, PtsMap
+from .ptsmap import ClipToFilename, PtsMap
 
 logger = logging.getLogger('tsmarker.common')
 

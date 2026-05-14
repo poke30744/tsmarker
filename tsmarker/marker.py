@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 from rich.logging import RichHandler
 from . import __version__
-from tscutter.common import PtsMap
+from .ptsmap import PtsMap
 from ._progress import Progress
 from . import subtitles
 from . import clipinfo

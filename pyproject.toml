@@ -19,7 +19,8 @@ classifiers = [
 dependencies = [
     "click",
     "rich",
-    "tscutter",
+    "ffmpeg-python",
+    "Pillow",
     "scikit-learn",
     "opencv-python-headless",
     "pandas",

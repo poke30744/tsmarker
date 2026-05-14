@@ -1,5 +1,5 @@
 from pathlib import Path
-from tscutter.ffmpeg import InputFile
+from .inputfile import InputFile
 from . import common
 
 class MarkerMap(common.MarkerMap):

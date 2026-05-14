@@ -1,7 +1,7 @@
 import json, tempfile
 from pathlib import Path
 from unittest.mock import patch
-from tscutter.common import PtsMap
+from tsmarker.ptsmap import PtsMap
 from tsmarker.common import MarkerMap, get_program_clips
 
 

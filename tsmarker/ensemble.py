@@ -11,7 +11,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.model_selection import train_test_split
 from . import common
-from tscutter.common import PtsMap
+from .ptsmap import PtsMap
 
 logger = logging.getLogger('tsmarker.ensemble')
 

@@ -10,25 +10,8 @@ Python package for marking CM clips in MPEG2‑TS videos using multiple methods 
 - **CM classification**: `_auto_by_method` chooses `_groundtruth > _ensemble > speech > logo > subtitles`. Falls back to `logo` when subtitles have no signal (all 0.0 or 0.5).
 - **Subtitle extraction**: subtitles are read from embedded ASS in MKV via ffmpeg. No standalone `.ass.original` file needed.
 - Entry point: `tsmarker.marker:main`, console script `tsmarker`
-- Dependency: `tscutter` (uses CLI for analyze/list-clips/select-clips/probe/split)
+
 - Requires Python ≥3.13
-
-## Local Development Setup
-
-**Before committing**, remove any `[tool.uv.sources]` block from `pyproject.toml` — it is for local development only and will break CI (Jenkins container has no `../tscutter`).
-
-When working on tsmarker with local tscutter changes, temporarily add to `pyproject.toml`:
-
-```toml
-[tool.uv.sources]
-tscutter = { path = "../tscutter" }
-```
-
-Remove it before committing. Alternatively, install local tscutter into the venv:
-
-```bash
-uv pip install -e ../tscutter
-```
 
 ## Common Development Commands
 
@@ -85,6 +68,5 @@ tsmarker ensemble-predict --model model.pkl --index index.ptsmap --marker output
 
 ## Dependencies & External Tools
 - **LLM API** — speech marking uses OpenAI-compatible API (`OPENAI_API_KEY`, `OPENAI_API_BASE`, `OPENAI_MODEL` env vars)
-- **tscutter CLI** — needed for `analyze`, `list-clips`, `select-clips`, `probe`, `split` subcommands
 - **ffmpeg/ffprobe** — must be in PATH
 - Python: rich, scikit-learn, opencv-python, pandas, pysubs2, SpeechRecognition, openai, requests, PyYAML, python-dotenv

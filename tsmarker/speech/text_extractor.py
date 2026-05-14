@@ -6,8 +6,8 @@ import tempfile
 import time
 import speech_recognition as sr
 
-from tscutter.ffmpeg import InputFile
-from tscutter.common import PtsMap
+from ..inputfile import InputFile
+from ..ptsmap import PtsMap
 from .dataset import ExtractSubtitlesText as OriginalExtractSubtitlesText
 
 logger = logging.getLogger("tsmarker.speech.text_extractor")

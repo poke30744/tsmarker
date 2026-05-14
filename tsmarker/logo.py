@@ -3,7 +3,8 @@ from pathlib import Path
 import math
 import numpy as np
 import cv2 as cv
-from tscutter.common import ClipToFilename, InvalidTsFormat
+from .ptsmap import ClipToFilename
+from .inputfile import InvalidTsFormat
 from . import common
 from .pipeline import ExtractLogoPipeline, cv2imread, InputFile
 

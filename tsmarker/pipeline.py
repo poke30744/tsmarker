@@ -3,8 +3,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import cv2 as cv
-from tscutter import ffmpeg
-from tscutter.common import PtsMap, InvalidTsFormat, ClipToFilename
+from .inputfile import InputFile as InputFileBase, InvalidTsFormat
+from .ptsmap import PtsMap, ClipToFilename
 
 logger = logging.getLogger('tsmarker.pipeline')
 
@@ -55,7 +55,7 @@ def drawEdges(imagePath, outputPath=None, threshold1=32, threshold2=64, aperture
     cv2imwrite(outputPath, edges)
     return outputPath
 
-class InputFile(ffmpeg.InputFile):
+class InputFile(InputFileBase):
     def ExtractAreaCmd(self, inFile, folder, crop=None, ss=None, to=None, fps='1/1'):
         args = [ self.ffmpeg, '-hide_banner' ]
         if ss is not None and to is not None:

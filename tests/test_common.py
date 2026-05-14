@@ -1,6 +1,6 @@
 import json, tempfile
 from pathlib import Path
-from tscutter.common import PtsMap
+from tsmarker.ptsmap import PtsMap
 from tsmarker.common import MarkerMap, _merge_neighbors, _auto_by_method, _clips_duration, _split_clips
 
 
@@ -96,19 +96,88 @@ def test_MarkerMap_Normalized():
         pts_path.unlink()
 
 
-def test_auto_by_method():
+def _make_marker(ptsmap_data, marks):
+    """Create a MarkerMap with marked clips, saved to a temp file."""
+    ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
+    marker_path = Path(tempfile.mkdtemp()) / 'test.markermap'
+    mm = MarkerMap(marker_path, ptsMap)
+    for clip, prop, value in marks:
+        mm.Mark(clip, prop, value)
+    mm.Save()
+    return MarkerMap(marker_path, ptsMap), pts_path, marker_path
+
+
+def test_auto_by_method_subtitles():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
         "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
-    ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
+    mm, pts_path, marker_path = _make_marker(ptsmap_data, [
+        ((0.0, 100.0), 'subtitles', 1.0),
+        ((100.0, 200.0), 'subtitles', 0.2),
+    ])
     try:
-        marker_path = Path(tempfile.mkdtemp()) / 'test.markermap'
-        mm = MarkerMap(marker_path, ptsMap)
         assert _auto_by_method(mm) == 'subtitles'
-
-        marker_path.unlink(missing_ok=True)
-        marker_path.parent.rmdir()
     finally:
         pts_path.unlink()
+        marker_path.unlink()
+        marker_path.parent.rmdir()
+
+
+def test_auto_by_method_logo_fallback():
+    ptsmap_data = {
+        "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
+        "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
+    }
+    mm, pts_path, marker_path = _make_marker(ptsmap_data, [
+        ((0.0, 100.0), 'subtitles', 0.0),
+        ((100.0, 200.0), 'subtitles', 0.5),
+    ])
+    try:
+        assert _auto_by_method(mm) == 'logo'
+    finally:
+        pts_path.unlink()
+        marker_path.unlink()
+        marker_path.parent.rmdir()
+
+
+def test_auto_by_method_groundtruth():
+    ptsmap_data = {
+        "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
+        "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
+    }
+    mm, pts_path, marker_path = _make_marker(ptsmap_data, [
+        ((0.0, 100.0), '_groundtruth', 1.0),
+        ((100.0, 200.0), '_groundtruth', 0.0),
+        ((0.0, 100.0), 'subtitles', 0.2),
+        ((100.0, 200.0), 'subtitles', 0.8),
+    ])
+    try:
+        assert _auto_by_method(mm) == '_groundtruth'
+    finally:
+        pts_path.unlink()
+        marker_path.unlink()
+        marker_path.parent.rmdir()
+
+
+def test_auto_by_method_speech():
+    ptsmap_data = {
+        "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
+        "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
+    }
+    mm, pts_path, marker_path = _make_marker(ptsmap_data, [
+        ((0.0, 100.0), 'speech', 0.9),
+        ((100.0, 200.0), 'speech', 0.1),
+        ((0.0, 100.0), 'subtitles', 1.0),
+        ((100.0, 200.0), 'subtitles', 0.0),
+    ])
+    try:
+        assert _auto_by_method(mm) == 'speech'
+    finally:
+        pts_path.unlink()
+        marker_path.unlink()
+        marker_path.parent.rmdir()
