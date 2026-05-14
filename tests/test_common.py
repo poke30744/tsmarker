@@ -41,7 +41,7 @@ def test_split_clips():
 def test_MarkerMap_basic():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
@@ -69,7 +69,7 @@ def test_MarkerMap_basic():
 def test_MarkerMap_Normalized():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
@@ -99,7 +99,7 @@ def test_MarkerMap_Normalized():
 def test_auto_by_method():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)

@@ -24,7 +24,11 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
     indexPath.parent.mkdir(parents=True, exist_ok=True)
     markerPath.parent.mkdir(parents=True, exist_ok=True)
     ptsMap = PtsMap(indexPath)
+    total_clips = len(ptsMap.Clips())
     for method in methods:
+        if progress is not None:
+            progress.add_task(f'mark_{method}', total_clips, f'Mark: {method}')
+            progress.update(f'mark_{method}', 0)
         if method == 'subtitles':
             subtitles.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'logo':
@@ -33,6 +37,9 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'speech':
             speech.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
+        if progress is not None:
+            progress.update(f'mark_{method}', total_clips)
+            progress.done(f'mark_{method}')
     return markerPath
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})

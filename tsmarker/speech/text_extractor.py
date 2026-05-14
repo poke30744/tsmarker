@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 import json
 import subprocess
+import tempfile
 import time
 import speech_recognition as sr
 
@@ -51,12 +52,26 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
     """Load existing ASS subtitles and generate speech-to-text for clips without text."""
 
     originalSubtitlesPath = ptsMap.path.with_suffix(".ass.original")
-    if not originalSubtitlesPath.exists():
-        originalSubtitlesPath = videoPath.with_suffix(".ass.original")
     generatedSubtitlesPath = ptsMap.path.with_suffix(".assgen")
 
     if originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
         return originalSubtitlesPath, generatedSubtitlesPath
+
+    # Extract ASS from MKV if .ass.original not already on disk
+    if not originalSubtitlesPath.exists():
+        with tempfile.NamedTemporaryFile(suffix='.ass', delete=False) as tmp:
+            ass_tmp_path = Path(tmp.name)
+        try:
+            subprocess.run(['ffmpeg', '-y', '-hide_banner',
+                            '-i', str(videoPath), '-map', '0:s:0', '-c:s', 'copy',
+                            str(ass_tmp_path)],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if ass_tmp_path.stat().st_size > 0:
+                ass_tmp_path.rename(originalSubtitlesPath)
+            else:
+                ass_tmp_path.unlink()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            ass_tmp_path.unlink(missing_ok=True)
 
     clips = ptsMap.Clips()
     textList = (

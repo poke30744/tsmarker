@@ -15,7 +15,7 @@ def _make_temp_ptsmap(ptsmap_data):
 def test_MarkerMap_clips():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
@@ -35,7 +35,7 @@ def test_MarkerMap_clips():
 def test_MarkerMap_cut_logic():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0, "prev_end_sad": 0.0, "next_start_sad": 0.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0, "prev_end_sad": 0.1, "next_start_sad": 0.2},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5, "prev_end_sad": 0.1, "next_start_sad": 0.2},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0, "prev_end_sad": 0.0, "next_start_sad": 0.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
@@ -68,7 +68,7 @@ def test_MarkerMap_cut_logic():
                 ss_idx = call_args.index('-ss')
                 assert call_args[ss_idx + 1] == '0.0'
                 to_idx = call_args.index('-to')
-                assert call_args[to_idx + 1] == '99.0'
+                assert call_args[to_idx + 1] == '100.0'
 
                 cm_files = list((out / 'CM').glob('*.ts'))
                 program_files = [f for f in out.glob('*.ts') if f.parent.name != 'CM']
@@ -84,8 +84,8 @@ def test_MarkerMap_cut_logic():
 def test_get_program_clips_by_group():
     ptsmap_data = {
         "0.0": {"prev_end_pts": 0.0, "next_start_pts": 0.0},
-        "50.0": {"prev_end_pts": 49.0, "next_start_pts": 51.0},
-        "100.0": {"prev_end_pts": 99.0, "next_start_pts": 101.0},
+        "50.0": {"prev_end_pts": 50.0, "next_start_pts": 50.5},
+        "100.0": {"prev_end_pts": 100.0, "next_start_pts": 100.5},
         "200.0": {"prev_end_pts": 200.0, "next_start_pts": 200.0},
     }
     ptsMap, pts_path = _make_temp_ptsmap(ptsmap_data)
