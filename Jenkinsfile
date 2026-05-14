@@ -44,8 +44,8 @@ pipeline {
                         --extra-index-url https://test.pypi.org/simple \
                         --index-strategy unsafe-best-match \
                         dist/tsmarker-0.1.$BUILD_NUMBER-py3-none-any.whl
-                    uv run tsmarker --help
-                    uv run tsmarker get-program-clips -h
+                    .venv/bin/tsmarker --help
+                    .venv/bin/tsmarker get-program-clips -h
                 '''
             }
         }

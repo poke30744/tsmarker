@@ -13,6 +13,23 @@ Python package for marking CM clips in MPEG2‑TS videos using multiple methods 
 - Dependency: `tscutter` (uses CLI for analyze/list-clips/select-clips/probe/split)
 - Requires Python ≥3.13
 
+## Local Development Setup
+
+**Before committing**, remove any `[tool.uv.sources]` block from `pyproject.toml` — it is for local development only and will break CI (Jenkins container has no `../tscutter`).
+
+When working on tsmarker with local tscutter changes, temporarily add to `pyproject.toml`:
+
+```toml
+[tool.uv.sources]
+tscutter = { path = "../tscutter" }
+```
+
+Remove it before committing. Alternatively, install local tscutter into the venv:
+
+```bash
+uv pip install -e ../tscutter
+```
+
 ## Common Development Commands
 
 ```bash
