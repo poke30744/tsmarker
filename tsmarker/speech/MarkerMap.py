@@ -14,14 +14,12 @@ class MarkerMap(common.MarkerMap):
         if not videoPath or not videoPath.exists():
             raise FileNotFoundError(f"Video file does not exist: {videoPath}")
 
-        originalSubtitlesPath = self.path.with_suffix(".ass.original")
-        generatedSubtitlesPath = self.path.with_suffix(".assgen")
-        if not originalSubtitlesPath.exists() and not generatedSubtitlesPath.exists():
+        generatedSubtitlesPath = self.path.with_suffix(".generated.srt")
+        if not generatedSubtitlesPath.exists():
             PrepareSubtitlesNew(videoPath, self.ptsMap, progress=progress)
 
         clips = self.Clips()
-        textList = LoadClipTexts(
-            videoPath, self.ptsMap, originalSubtitlesPath, generatedSubtitlesPath)
+        textList = LoadClipTexts(videoPath, self.ptsMap, generatedSubtitlesPath)
 
         if not any(textList):
             logger.warning("All clips have no text content, skipping marking")

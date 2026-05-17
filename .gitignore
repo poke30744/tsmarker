@@ -137,3 +137,4 @@ speech.keras
 dataset.csv
 ensemble_model.pkl
 .claude/settings.local.json
+.models/

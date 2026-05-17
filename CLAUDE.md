@@ -8,7 +8,8 @@ Python package for marking CM clips in MPEG2‑TS videos using multiple methods 
 
 - **Logo detection**: Uses normalized cross-correlation (NCC) on raw pixel templates instead of edge-based AND comparison. The logo template is stored as a full-frame grayscale mean image (1440×1080 PNG), with the logo region auto-detected at mark time via edge-density scanning.
 - **CM classification**: `_auto_by_method` chooses `_groundtruth > _ensemble > speech > logo > subtitles`. Falls back to `logo` when subtitles have no signal (all 0.0 or 0.5).
-- **Subtitle extraction**: subtitles are read from embedded ASS in MKV via ffmpeg. No standalone `.ass.original` file needed.
+- **Subtitle extraction**: subtitles read from embedded ASS in MKV via ffmpeg. Whisper (faster-whisper small) generates `.generated.srt` for clips without original subtitles.
+- **Speech-to-text**: Google Web Speech API replaced by local faster-whisper (small model, int8, ~320MB RAM). Consecutive no-subtitle clips merged for context before transcription.
 - Entry point: `tsmarker.marker:main`, console script `tsmarker`
 
 - Requires Python ≥3.13
@@ -61,7 +62,7 @@ tsmarker ensemble-predict --model model.pkl --index index.ptsmap --marker output
 - `subtitles.py` — Subtitle-based CM detection (from ASS file)
 - `clipinfo.py` — Clip position/duration marking
 - `logo.py` — Logo-based CM detection
-- `speech/` — Speech recognition and LLM-based marking
+- `speech/` — Speech-to-text (whisper) + LLM-based marking; `whisper_stt.py` SRT generation, `text_extractor.py` subtitle prep, `llm_client.py` OpenAI client, `prompt_engine.py` YAML context prompts
 - `ensemble.py` — Ensemble model training and prediction
 - `groundtruth.py` — Manual verification ground truth marking
 - `pipeline.py` — `ExtractLogoPipeline`, `CropDetectPipeline`, `ExtractMeanImage` logo/crop utilities
@@ -69,4 +70,4 @@ tsmarker ensemble-predict --model model.pkl --index index.ptsmap --marker output
 ## Dependencies & External Tools
 - **LLM API** — speech marking uses OpenAI-compatible API (`OPENAI_API_KEY`, `OPENAI_API_BASE`, `OPENAI_MODEL` env vars)
 - **ffmpeg/ffprobe** — must be in PATH
-- Python: rich, scikit-learn, opencv-python, pandas, pysubs2, SpeechRecognition, openai, requests, PyYAML, python-dotenv
+- Python: rich, scikit-learn, opencv-python, pandas, pysubs2, faster-whisper, openai, requests, PyYAML, python-dotenv

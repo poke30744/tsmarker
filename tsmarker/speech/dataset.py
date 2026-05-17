@@ -1,5 +1,5 @@
 from functools import lru_cache
-import logging, re, json
+import logging, re
 from pathlib import Path
 import pysubs2
 
@@ -21,16 +21,6 @@ def ExtractSubtitlesText(assPath: Path, clip: tuple[float, float]) -> str:
                 text = text.replace(r'\N', '')
                 result.append(text)
         return ' '.join(result)
-    except FileNotFoundError:
-        return ""
-
-def ExtractGenSubtitlesText(assGenPath: Path, clip: tuple[float, float]) -> str:
-    try:
-        with assGenPath.open() as f:
-            assGen = json.load(f)
-        return assGen[str(clip)]
-    except KeyError:
-        return ""
     except FileNotFoundError:
         return ""
 
