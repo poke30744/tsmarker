@@ -64,9 +64,12 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
 def LoadClipTexts(
     videoPath: Path,
     ptsMap: PtsMap,
-    generatedSubtitlesPath: Path,
+    subtitlesPath: Path,
 ) -> list[str]:
-    """Load all clip texts from original (MKV-embedded) and generated ASS subtitles."""
+    """Load all clip texts from original (MKV-embedded) and STT subtitles.
+
+    subtitlesPath should point to .corrected.srt (preferred) or .generated.srt.
+    """
     clips = ptsMap.Clips()
     textList = [""] * len(clips)
 
@@ -76,11 +79,11 @@ def LoadClipTexts(
         for i, clip in enumerate(clips):
             textList[i] = _text_for_clip(ass, clip)
 
-    # Supplement from generated subtitles
-    if generatedSubtitlesPath.exists():
+    # Supplement from STT subtitles
+    if subtitlesPath.exists():
         for i in range(len(clips)):
             if textList[i] == "":
-                text = ExtractSubtitlesText(generatedSubtitlesPath, clips[i])
+                text = ExtractSubtitlesText(subtitlesPath, clips[i])
                 if text:
                     textList[i] = text
 

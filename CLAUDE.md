@@ -8,7 +8,7 @@ Python package for marking CM clips in MPEG2‑TS videos using multiple methods 
 
 - **Logo detection**: Uses normalized cross-correlation (NCC) on raw pixel templates instead of edge-based AND comparison. The logo template is stored as a full-frame grayscale mean image (1440×1080 PNG), with the logo region auto-detected at mark time via edge-density scanning.
 - **CM classification**: `_auto_by_method` chooses `_groundtruth > _ensemble > speech > logo > subtitles`. Falls back to `logo` when subtitles have no signal (all 0.0 or 0.5).
-- **Subtitle extraction**: subtitles read from embedded ASS in MKV via ffmpeg. Whisper (faster-whisper small) generates `.generated.srt` for clips without original subtitles.
+- **Subtitle correction**: After whisper STT, `.generated.srt` is corrected via LLM (three-layer detection: single-entry plausibility → local coherence → global consistency) to `.corrected.srt`. The speech module uses `.corrected.srt` for classification.
 - **Speech-to-text**: Google Web Speech API replaced by local faster-whisper (small model, int8, ~320MB RAM). Consecutive no-subtitle clips merged for context before transcription.
 - Entry point: `tsmarker.marker:main`, console script `tsmarker`
 
@@ -47,6 +47,9 @@ tsmarker crop-detect -i logo.png
 # Subtitle preparation (loads existing ASS, does speech-to-text)
 tsmarker prepare-subtitles -i video.mkv -x index.ptsmap
 
+# Correct whisper-generated subtitles using LLM with YAML metadata
+tsmarker correct-srt -i video.mkv
+
 # Ensemble training pipeline
 tsmarker ensemble-dataset -i search_folder/ -o dataset.csv
 tsmarker ensemble-train -i dataset.csv -o model.pkl
@@ -62,6 +65,7 @@ tsmarker ensemble-predict --model model.pkl --index index.ptsmap --marker output
 - `subtitles.py` — Subtitle-based CM detection (from ASS file)
 - `clipinfo.py` — Clip position/duration marking
 - `logo.py` — Logo-based CM detection
+- `correct_srt.py` — LLM-based SRT correction (three-layer detection), integrated into speech pipeline after whisper STT
 - `speech/` — Speech-to-text (whisper) + LLM-based marking; `whisper_stt.py` SRT generation, `text_extractor.py` subtitle prep, `llm_client.py` OpenAI client, `prompt_engine.py` YAML context prompts
 - `ensemble.py` — Ensemble model training and prediction
 - `groundtruth.py` — Manual verification ground truth marking

@@ -31,9 +31,10 @@
 ### 模块结构
 ```
 tsmarker/
+├── correct_srt.py                   # LLM字幕修正（三层检测）
 ├── speech/                          # 改造后模块目录
 │   ├── __init__.py                 # 导出 MarkerMap 类
-│   ├── MarkerMap.py                # 主类（LLM版本）
+│   ├── MarkerMap.py                # 主类（LLM版本，集成correct_srt）
 │   ├── llm_client.py               # OpenAI客户端
 │   ├── prompt_engine.py            # 文本分类提示工程
 │   └── text_extractor.py           # 文本提取（复用现有逻辑）
@@ -126,13 +127,15 @@ SPEECH_DEBUG=false                  # 启用调试日志
 ### 单视频处理流程
 ```
 1. 加载视频和索引文件
-2. 加载对应YAML文件获取节目元数据
-3. 提取每个clip的文本（字幕优先，音频备用）
-4. 构建提示：包含节目元数据 + 所有clip文本
-5. 单次调用OpenAI API，获取所有clip的判断结果
-6. 解析响应，提取概率值
-7. 调用 self.Mark(clip, 'speech', probability)
-8. 保存.markermap文件
+2. 若 .generated.srt 不存在 → whisper STT 生成
+3. 若 .corrected.srt 不存在 → LLM修正 .generated.srt（三层检测：单条合理性→局部连贯性→全局一致性）
+4. 加载对应YAML文件获取节目元数据
+5. 提取每个clip的文本（.corrected.srt 优先，.generated.srt 回退）
+6. 构建提示：包含节目元数据 + 所有clip文本
+7. 单次调用OpenAI API，获取所有clip的判断结果
+8. 解析响应，提取概率值
+9. 调用 self.Mark(clip, 'speech', probability)
+10. 保存.markermap文件
 ```
 
 ### 提示模板设计（充分利用YAML信息）
@@ -227,10 +230,10 @@ USER_PROMPT_TEMPLATE = """
    - 根据`serviceId`查找频道名称
    - 文件缺失时使用`serviceId`作为频道标识
 
-### 无重试逻辑
-- 假设OpenAI API稳定性足够
-- 避免复杂重试逻辑增加代码复杂度
-- 失败时快速反馈，便于问题排查
+### 重试逻辑
+- `correct_srt._call_llm`：empty response 时重试（可通过 `LLM_MAX_RETRIES` 环境变量配置，默认 3 次）
+- `llm_client.classify_batch`：empty response 时重试（同上配置）
+- API 失败直接抛出异常，由上层调用者处理
 
 ### 默认值定义
 ```python

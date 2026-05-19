@@ -14,6 +14,7 @@ from .common import MarkerMap, get_program_clips, _auto_by_method
 from .pipeline import ExtractLogoPipeline, CropDetectPipeline
 from .speech.text_extractor import PrepareSubtitles
 from . import ensemble
+from . import correct_srt
 
 logger = logging.getLogger('tsmarker.marker')
 
@@ -238,6 +239,31 @@ def generate_edl_cmd(marker, index, output, by):
     from .common import generate_edl
     result = generate_edl(Path(marker), Path(index), Path(output), by=by)
     print(f'EDL written to {result}')
+
+
+@cli.command(name='correct-srt')
+@click.option('--input', '-i', required=True, help='Input video path (.mkv/.ts, for finding YAML)')
+@click.option('--generated-srt', '-s', help='Generated SRT path (auto-detected if omitted)')
+@click.option('--output', '-o', help='Output corrected SRT path (auto-derived if omitted)')
+@click.option('--model', help='Override OPENAI_MODEL env var')
+@click.option('--base-url', help='Override OPENAI_API_BASE env var')
+def correct_srt_cmd(input, generated_srt, output, model, base_url):
+    """Correct .generated.srt transcription errors using LLM with YAML metadata."""
+    video_path = Path(input)
+    srt_path = Path(generated_srt) if generated_srt else video_path.parent / '_metadata' / f"{video_path.stem}.generated.srt"
+    out_path = Path(output) if output else video_path.parent / '_metadata' / f"{video_path.stem}.corrected.srt"
+
+    if not srt_path.exists():
+        raise click.FileError(str(srt_path), hint="Generated SRT not found. Run prepare-subtitles first?")
+
+    result = correct_srt.correct_srt(
+        video_path=video_path,
+        generated_srt_path=srt_path,
+        output_path=out_path,
+        model=model,
+        base_url=base_url,
+    )
+    print(str(result))
 
 
 def main():

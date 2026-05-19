@@ -18,8 +18,14 @@ class MarkerMap(common.MarkerMap):
         if not generatedSubtitlesPath.exists():
             PrepareSubtitlesNew(videoPath, self.ptsMap, progress=progress)
 
+        correctedPath = self.path.with_suffix(".corrected.srt")
+        if not correctedPath.exists() and generatedSubtitlesPath.exists():
+            from ..correct_srt import correct_srt
+            correct_srt(videoPath, generatedSubtitlesPath, correctedPath)
+
+        srtPath = correctedPath if correctedPath.exists() else generatedSubtitlesPath
         clips = self.Clips()
-        textList = LoadClipTexts(videoPath, self.ptsMap, generatedSubtitlesPath)
+        textList = LoadClipTexts(videoPath, self.ptsMap, srtPath)
 
         if not any(textList):
             logger.warning("All clips have no text content, skipping marking")
