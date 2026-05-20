@@ -3,7 +3,7 @@ from pathlib import Path
 from .. import common
 from .llm_client import OpenAIClient
 from .prompt_engine import PromptEngine
-from .text_extractor import PrepareSubtitles as PrepareSubtitlesNew, LoadClipTexts
+from .text_extractor import LoadClipTexts
 
 logger = logging.getLogger('tsmarker.speech')
 
@@ -16,16 +16,10 @@ class MarkerMap(common.MarkerMap):
 
         originalSubtitlesPath = self.path.with_suffix(".ass.original")
         generatedSubtitlesPath = self.path.with_suffix(".assgen")
-        if not originalSubtitlesPath.exists() and not generatedSubtitlesPath.exists():
-            PrepareSubtitlesNew(videoPath, self.ptsMap, progress=progress)
 
         clips = self.Clips()
         textList = LoadClipTexts(
             videoPath, self.ptsMap, originalSubtitlesPath, generatedSubtitlesPath)
-
-        if not any(textList):
-            logger.warning("All clips have no text content, skipping marking")
-            return
 
         try:
             llm_client = OpenAIClient()
@@ -38,8 +32,7 @@ class MarkerMap(common.MarkerMap):
             non_empty_texts = [textList[i] for i in non_empty_indices]
 
             if not non_empty_texts:
-                logger.warning("All clips have no text content, skipping marking")
-                return
+                logger.warning("All clips have no text content, using default 0.5")
 
             non_empty_probabilities = llm_client.classify_batch(
                 texts=non_empty_texts,
