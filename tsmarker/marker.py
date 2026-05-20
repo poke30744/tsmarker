@@ -266,6 +266,19 @@ def correct_srt_cmd(input, generated_srt, output, model, base_url):
     print(str(result))
 
 
+@cli.command(name='fix-srt-gaps')
+@click.option('--srt', '-s', required=True, help='Path to .corrected.srt file')
+def fix_srt_gaps_cmd(srt):
+    """Fix subtitle end-time gaps caused by faster-whisper VAD bugs.
+
+    Applies statistical gap-closing to correct subtitles that disappear
+    before speech finishes. Modifies the SRT file in-place.
+    """
+    from .fix_srt_gaps import fix_srt_gaps
+    fix_srt_gaps(Path(srt))
+    click.echo(f"Fixed gaps in {srt}")
+
+
 def main():
     cli()
 

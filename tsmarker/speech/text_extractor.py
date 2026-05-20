@@ -40,8 +40,9 @@ def _text_for_clip(ass: pysubs2.SSAFile, clip: tuple[float, float]) -> str:
     for event in ass.events:
         if event.start < end_ms and start_ms < event.end:
             text = re.sub(r'\{.*?\}', '', event.text)
-            text = text.replace(r'\N', '')
-            texts.append(text)
+            text = text.replace(r'\N', '').strip()
+            if text:
+                texts.append(text)
     return ' '.join(texts)
 
 

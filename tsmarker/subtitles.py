@@ -37,6 +37,8 @@ class MarkerMap(common.MarkerMap):
             for i, clip in enumerate(clips):
                 overlap = False
                 for event in subtitles:
+                    if not event.text.strip():
+                        continue
                     if Overlap((event.start / 1000, event.end / 1000), (clip[0], clip[1])):
                         overlap = True
                         break

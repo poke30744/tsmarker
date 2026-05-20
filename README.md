@@ -17,7 +17,9 @@ tsmarker [--quiet] [--progress] [--version] COMMAND [ARGS]...
 | `get-program-clips` | Group program clips | `.markermap` + `.ptsmap` | stdout JSON |
 | `extract-logo` | Logo edge detection | TS + `.ptsmap` | PNG |
 | `crop-detect` | Detect crop parameters | logo PNG | stdout JSON |
-| `prepare-subtitles` | Extract subtitles + STT | TS + `.ptsmap` | `.ass.original` + `.assgen` |
+| `prepare-subtitles` | Extract subtitles + STT | TS + `.ptsmap` | `.generated.srt` |
+| `correct-srt` | LLM correction of STT errors | `.generated.srt` + `.yaml` | `.corrected.srt` |
+| `fix-srt-gaps` | Fix end-time gaps from VAD bugs | `.corrected.srt` | `.corrected.srt` (in-place) |
 | `ensemble-dataset` | Generate training CSV | search folder | CSV |
 | `ensemble-train` | Train ensemble model | CSV | model.pkl |
 | `ensemble-predict` | Predict with model | model + `.ptsmap` + `.markermap` | `.markermap` (in-place) |

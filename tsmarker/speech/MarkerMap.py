@@ -22,6 +22,8 @@ class MarkerMap(common.MarkerMap):
         if not correctedPath.exists() and generatedSubtitlesPath.exists():
             from ..correct_srt import correct_srt
             correct_srt(videoPath, generatedSubtitlesPath, correctedPath)
+            from ..fix_srt_gaps import fix_srt_gaps
+            fix_srt_gaps(correctedPath)
 
         srtPath = correctedPath if correctedPath.exists() else generatedSubtitlesPath
         clips = self.Clips()
