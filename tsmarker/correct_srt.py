@@ -246,6 +246,7 @@ def correct_srt(
     model: str | None = None,
     base_url: str | None = None,
     api_key: str | None = None,
+    progress=None,
 ) -> Path:
     """Correct a .generated.srt using LLM with YAML metadata as context.
 
@@ -288,6 +289,10 @@ def correct_srt(
     corrected_entries = []  # list of (orig_index, entry_text)
     num_batches = (orig_count + BATCH_SIZE - 1) // BATCH_SIZE
 
+    tid = "correct_srt"
+    if progress is not None:
+        progress.add_task(tid, num_batches, "LLM SRT correction")
+
     for bi in range(num_batches):
         start = bi * BATCH_SIZE
         end = min(start + BATCH_SIZE, orig_count)
@@ -317,6 +322,9 @@ def correct_srt(
 
         content = _call_llm(client, model, system_prompt, user_prompt)
         logger.info(f"Batch {bi + 1}/{num_batches}: response={len(content)} chars")
+
+        if progress is not None:
+            progress.update(tid, bi + 1)
 
         # Parse corrected batch
         corrected_text = _parse_corrected_srt(content)
@@ -358,4 +366,8 @@ def correct_srt(
         f.write(corrected + "\n")
 
     logger.info(f"Wrote corrected SRT to {output_path}")
+
+    if progress is not None:
+        progress.done(tid)
+
     return output_path

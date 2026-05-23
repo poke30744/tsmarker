@@ -56,8 +56,8 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
     generatedSubtitlesPath = ptsMap.path.with_suffix(".generated.srt")
 
     if not generatedSubtitlesPath.exists():
-        from .whisper_stt import generate_ass_subtitles
-        generate_ass_subtitles(videoPath, ptsMap, progress=progress)
+        from .whisper_stt import generate_subtitles
+        generate_subtitles(videoPath, ptsMap, progress=progress)
 
     return generatedSubtitlesPath
 
