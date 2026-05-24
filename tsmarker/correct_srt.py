@@ -230,6 +230,11 @@ def _call_llm(
             max_tokens=32 * 1024,
             timeout=300.0,
         )
+        if response is None:
+            if attempt < max_retries:
+                logger.warning(f"Null response from API, retrying ({attempt + 1}/{max_retries})...")
+                continue
+            raise ValueError("Null response from OpenAI API")
         content = response.choices[0].message.content
         if content:
             return content
