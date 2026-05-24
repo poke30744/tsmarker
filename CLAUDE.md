@@ -9,7 +9,7 @@ Python package for marking CM clips in MPEG2‑TS videos using multiple methods 
 - **Logo detection**: Uses normalized cross-correlation (NCC) on raw pixel templates instead of edge-based AND comparison. The logo template is stored as a full-frame grayscale mean image (1440×1080 PNG), with the logo region auto-detected at mark time via edge-density scanning.
 - **CM classification**: `_auto_by_method` chooses `_groundtruth > _ensemble > speech > logo > subtitles`. Falls back to `logo` when subtitles have no signal (all 0.0 or 0.5).
 - **Subtitle correction**: After whisper STT, `.generated.srt` is corrected via LLM (three-layer detection: single-entry plausibility → local coherence → global consistency) to `.corrected.srt`. Gaps from whisper VAD bugs are then fixed in-place (see `fix_srt_gaps.py`). The speech module uses `.corrected.srt` for classification.
-- **Speech-to-text**: whisper.cpp (medium-q5_0, CUDA GPU, ~539 MB VRAM) replaces faster-whisper. Model auto-downloaded via huggingface-hub. Each no-subtitle clip processed individually to prevent cross-clip hallucination.
+- **Speech-to-text**: whisper.cpp (medium-q5_0, CUDA GPU, ~539 MB VRAM) replaces faster-whisper. Model auto-downloaded via huggingface-hub. Each no-subtitle clip processed individually to prevent cross-clip hallucination. Repetitive hallucination loops (≥5 identical entries) are re-recognized with `--no-fallback`.
 - Entry point: `tsmarker.marker:main`, console script `tsmarker`
 
 - Requires Python ≥3.13
