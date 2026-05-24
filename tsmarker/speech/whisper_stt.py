@@ -15,6 +15,7 @@ REPO_ID = "ggerganov/whisper.cpp"
 MODEL_FILE = "ggml-medium-q5_0.bin"
 PROGRESS_RE = re.compile(r"whisper_print_progress_callback:\s*progress\s*=\s*(\d+)%")
 REPEAT_THRESHOLD = 5  # consecutive identical entries triggers re-recognition
+LONG_ENTRY_S = 12.0   # single entry exceeding this duration is flagged
 
 
 def _find_whisper_cli():
@@ -132,16 +133,26 @@ def generate_subtitles(video_path: Path, pts_map, progress=None) -> Path:
 
 
 def _find_repetitive_runs(events):
-    """Find consecutive runs of identical text (≥ REPEAT_THRESHOLD)."""
+    """Find runs needing re-recognition: ≥5 consecutive identical texts,
+    or single entries exceeding LONG_ENTRY_S."""
     runs = []
+    in_run = set()  # indices already covered by a run
     i = 0
     while i < len(events):
         j = i + 1
         while j < len(events) and _norm_text(events[j].text) == _norm_text(events[i].text):
             j += 1
         if j - i >= REPEAT_THRESHOLD:
-            runs.append((i, j))  # [start_idx, end_idx) half-open
+            runs.append((i, j))
+            in_run.update(range(i, j))
         i = j
+    # Flag abnormally long single entries not already in runs
+    for i, e in enumerate(events):
+        if i not in in_run:
+            dur = (e.end - e.start) / 1000
+            if dur > LONG_ENTRY_S:
+                runs.append((i, i + 1))
+    runs.sort(key=lambda r: r[0])
     return runs
 
 
