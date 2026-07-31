@@ -101,6 +101,7 @@ class OpenAIClient:
                     temperature=float(os.getenv("SPEECH_TEMPERATURE", "0.1")),
                     max_tokens=int(os.getenv("SPEECH_MAX_TOKENS", "500")),
                     timeout=float(os.getenv("OPENAI_TIMEOUT", "30.0")),
+                    extra_body={"thinking": {"type": "disabled"}},
                 )
 
                 content = response.choices[0].message.content
