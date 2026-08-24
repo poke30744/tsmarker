@@ -149,11 +149,10 @@ class OpenAIClient:
         """
         Parse single clip response, extract probability value
 
-        Supported formats:
-        1. AD: 0.95 reason
-        2. AD: 0.30 reason
-        or
-        1. AD: 0.95 reason
+        Supported formats (probability may optionally be wrapped in brackets):
+        - AD: 0.95 reason
+        - AD: [0.95] reason
+        - 1. AD: [0.95] reason
         """
         import re
         lines = response_text.strip().split("\n")
@@ -162,9 +161,10 @@ class OpenAIClient:
             if not line:
                 continue
             # Match formats: number. AD: probability reason or AD: probability reason
+            # Probability may be wrapped in brackets, e.g. AD: [0.95] reason
             patterns = [
-                r"^\d+\.\s*AD:\s*([0-9]*\.?[0-9]+)",  # 1. AD: 0.95
-                r"AD:\s*([0-9]*\.?[0-9]+)",           # AD: 0.95
+                r"^\d+\.\s*AD:\s*\[?([0-9]*\.?[0-9]+)\]?",  # 1. AD: [0.95]
+                r"AD:\s*\[?([0-9]*\.?[0-9]+)\]?",           # AD: [0.95]
             ]
             for pattern in patterns:
                 match = re.search(pattern, line, re.IGNORECASE)
