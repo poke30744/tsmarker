@@ -17,6 +17,10 @@ logger = logging.getLogger("tsmarker.speech.text_extractor")
 # Reuse functions from dataset.py
 ExtractSubtitlesText = OriginalExtractSubtitlesText
 
+# Seconds to wait before each retry. The Google endpoint rejects a request with HTTP 400
+# (Bad Request) for reasons unrelated to the audio; the same request succeeds when retried later.
+RETRY_DELAYS = [5, 15, 30, 60]
+
 
 def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     """Extract text from audio (speech recognition)"""
@@ -35,7 +39,7 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
         except ValueError:
             return ""
     last_error = None
-    for attempt in range(3):
+    for attempt in range(len(RETRY_DELAYS) + 1):
         try:
             text = recognizer.recognize_google(audio, language="ja-JP")
             return text
@@ -43,21 +47,24 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
             return ""
         except sr.RequestError as e:
             last_error = e
-            if attempt < 2:
-                time.sleep(2 ** attempt)
+            if attempt < len(RETRY_DELAYS):
+                delay = RETRY_DELAYS[attempt]
+                logger.warning(f'Speech recognition failed ({e}), retrying in {delay}s ...')
+                time.sleep(delay)
     raise RuntimeError(
-        f"Speech recognition failed after 3 retries: {last_error}"
+        f"Speech recognition failed after {len(RETRY_DELAYS) + 1} attempts: {last_error}"
     )
 
 
 def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
-    """Prepare subtitle files: extract original subtitles and generate speech-to-text."""
+    """Prepare subtitle files: extract original subtitles and generate speech-to-text.
+
+    Generated subtitles are written after every clip, so a run that fails midway
+    keeps the clips already transcribed and the next run resumes from there.
+    """
 
     originalSubtitlesPath = ptsMap.path.with_suffix(".ass.original")
     generatedSubtitlesPath = ptsMap.path.with_suffix(".assgen")
-
-    if originalSubtitlesPath.exists() and generatedSubtitlesPath.exists():
-        return originalSubtitlesPath, generatedSubtitlesPath
 
     if not originalSubtitlesPath.exists():
         with tempfile.TemporaryDirectory(prefix="ExtractSubtitles_") as tmpFolder:
@@ -74,13 +81,18 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
     )
 
     generatedSubtitles = {}
+    if generatedSubtitlesPath.exists():
+        with generatedSubtitlesPath.open() as f:
+            generatedSubtitles = json.load(f)
+
     tid = "speech_to_text"
     if progress is not None:
         progress.add_task(tid, len(clips), "Speech-to-text")
     for i, clip in enumerate(clips):
-        if textList[i] == "":
-            textList[i] = ExtractAudioText(videoPath, clips[i])
-            generatedSubtitles[str(clips[i])] = textList[i]
+        if textList[i] == "" and str(clip) not in generatedSubtitles:
+            generatedSubtitles[str(clip)] = ExtractAudioText(videoPath, clips[i])
+            with generatedSubtitlesPath.open("w") as f:
+                json.dump(generatedSubtitles, f, ensure_ascii=False, indent=True)
         if progress is not None:
             progress.update(tid, i + 1)
     if progress is not None:
