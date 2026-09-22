@@ -18,8 +18,10 @@ logger = logging.getLogger("tsmarker.speech.text_extractor")
 ExtractSubtitlesText = OriginalExtractSubtitlesText
 
 # Seconds to wait before each retry. The Google endpoint rejects a request with HTTP 400
-# (Bad Request) for reasons unrelated to the audio; the same request succeeds when retried later.
-RETRY_DELAYS = [5, 15, 30, 60]
+# (Bad Request) for reasons unrelated to the audio; the same request succeeds when retried
+# later. Only a couple of quick retries: if the endpoint stays unhappy for longer, fail the
+# file and let the next run resume from the clips already saved in .assgen.
+RETRY_DELAYS = [5, 15]
 
 
 def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
