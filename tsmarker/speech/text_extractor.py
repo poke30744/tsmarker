@@ -24,16 +24,16 @@ ExtractSubtitlesText = OriginalExtractSubtitlesText
 RETRY_DELAYS = [5, 15]
 
 
-def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
+def ExtractAudioText(videoPath: Path, clip: tuple[float, float], serviceId: int | None = None) -> str:
     """Extract text from audio (speech recognition)"""
     recognizer = sr.Recognizer()
-    inputFile = InputFile(videoPath)
+    inputFile = InputFile(videoPath, serviceId=serviceId)
     with tempfile.TemporaryDirectory(prefix="ExtractAudioText_") as tmpFolder:
         wavPath = Path(tmpFolder) / "audio.wav"
         subprocess.run(
             [inputFile.ffmpeg, '-y', '-nostdin', '-loglevel', 'error',
              '-ss', str(clip[0]), '-to', str(clip[1]), '-i', str(videoPath),
-             '-map', '0:a:0', '-ac', '1', '-ar', '8000', str(wavPath)],
+             '-map', inputFile.MapSpec('a', 0), '-ac', '1', '-ar', '8000', str(wavPath)],
             check=True)
         try:
             with sr.AudioFile(str(wavPath)) as source:
@@ -58,7 +58,7 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float]) -> str:
     )
 
 
-def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
+def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None, serviceId: int | None = None):
     """Prepare subtitle files: extract original subtitles and generate speech-to-text.
 
     Generated subtitles are written after every clip, so a run that fails midway
@@ -92,7 +92,7 @@ def PrepareSubtitles(videoPath: Path, ptsMap: PtsMap, progress=None):
         progress.add_task(tid, len(clips), "Speech-to-text")
     for i, clip in enumerate(clips):
         if textList[i] == "" and str(clip) not in generatedSubtitles:
-            generatedSubtitles[str(clip)] = ExtractAudioText(videoPath, clips[i])
+            generatedSubtitles[str(clip)] = ExtractAudioText(videoPath, clips[i], serviceId)
             with generatedSubtitlesPath.open("w") as f:
                 json.dump(generatedSubtitles, f, ensure_ascii=False, indent=True)
         if progress is not None:

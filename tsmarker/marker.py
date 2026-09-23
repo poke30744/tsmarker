@@ -1,6 +1,7 @@
 import json, logging, sys
 from pathlib import Path
 import click
+from rich.console import Console
 from rich.logging import RichHandler
 from . import __version__
 from tscutter.common import PtsMap
@@ -18,7 +19,7 @@ from . import ensemble
 
 logger = logging.getLogger('tsmarker.marker')
 
-def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath=None):
+def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath=None, serviceId=None):
     videoPath = Path(videoPath)
     indexPath = Path(indexPath) if indexPath else videoPath.parent / '_metadata' / (videoPath.stem + '.ptsmap')
     markerPath = Path(markerPath) if markerPath else videoPath.parent / '_metadata' / (videoPath.stem + '.markermap')
@@ -29,7 +30,7 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
         if method == 'subtitles':
             subtitles.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'logo':
-            logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, logoPath=Path(logoPath) if logoPath else None, progress=progress)
+            logo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, logoPath=Path(logoPath) if logoPath else None, progress=progress, serviceId=serviceId)
         elif method == 'clipinfo':
             clipinfo.MarkerMap(markerPath, ptsMap).MarkAll(videoPath, progress=progress)
         elif method == 'speech':
@@ -44,9 +45,11 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
 def cli(ctx, quiet, progress):
     """Mark CMs in MPEG-TS files and manage the marker pipeline."""
     log_level = logging.WARNING if quiet else logging.INFO
+    # Log to stderr: commands like get-program-clips write JSON on stdout, and the
+    # parent (tstriage) parses that stdout as JSON.
     logging.basicConfig(
         level=log_level, format='%(message)s', datefmt='[%X]',
-        handlers=[RichHandler(rich_tracebacks=True)])
+        handlers=[RichHandler(console=Console(stderr=True), rich_tracebacks=True)])
     ctx.ensure_object(dict)
     ctx.obj['progress'] = Progress(use_protocol=progress)
 
@@ -59,11 +62,13 @@ def cli(ctx, quiet, progress):
 @click.option('--index', help='Mpegts index path (.ptsmap)')
 @click.option('--marker', help='Output marker file path (.markermap)')
 @click.option('--logo', help='Logo image path')
+@click.option('--service-id', type=int, help='Pin analysis to this service (program_number)')
 @click.pass_context
-def mark(ctx, method, input, index, marker, logo):
+def mark(ctx, method, input, index, marker, logo, service_id):
     """Mark CM clips in the mpegts file using specified detection methods."""
     MarkVideo(videoPath=input, indexPath=index, markerPath=marker,
-              methods=list(method), progress=ctx.obj['progress'], logoPath=logo)
+              methods=list(method), progress=ctx.obj['progress'], logoPath=logo,
+              serviceId=service_id)
 
 
 @cli.command()
@@ -151,8 +156,9 @@ def get_program_clips_cmd(marker, index, by, split, by_group):
 @click.option('--output', '-o', required=True, help='Output logo PNG path')
 @click.option('--max-time', type=float, default=120, show_default=True, help='Max extraction time in seconds')
 @click.option('--no-remove-border', is_flag=True, help='Do not remove frame border')
+@click.option('--service-id', type=int, help='Pin analysis to this service (program_number)')
 @click.pass_context
-def extract_logo(ctx, input, index, output, max_time, no_remove_border):
+def extract_logo(ctx, input, index, output, max_time, no_remove_border, service_id):
     """Extract logo edge image from TS + .ptsmap."""
     ExtractLogoPipeline(
         inFile=Path(input),
@@ -161,6 +167,7 @@ def extract_logo(ctx, input, index, output, max_time, no_remove_border):
         maxTimeToExtract=max_time,
         removeBoarder=not no_remove_border,
         progress=ctx.obj['progress'],
+        serviceId=service_id,
     )
 
 
@@ -178,10 +185,11 @@ def crop_detect(input, threshold):
 @cli.command()
 @click.option('--input', '-i', required=True, help='Input mpegts path')
 @click.option('--index', '-x', required=True, help='.ptsmap file path')
+@click.option('--service-id', type=int, help='Pin analysis to this service (program_number)')
 @click.pass_context
-def prepare_subtitles(ctx, input, index):
+def prepare_subtitles(ctx, input, index, service_id):
     """Extract subtitles and generate speech-to-text."""
-    PrepareSubtitles(Path(input), PtsMap(Path(index)), progress=ctx.obj['progress'])
+    PrepareSubtitles(Path(input), PtsMap(Path(index)), progress=ctx.obj['progress'], serviceId=service_id)
 
 
 @cli.command()

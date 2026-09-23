@@ -62,6 +62,7 @@ class InputFile(ffmpeg.InputFile):
         if ss is not None and to is not None:
             args += [ '-ss', str(ss), '-to', str(to) ]
         args += [ '-i', str(inFile) ]
+        args += self.ServiceMapArgs('v', 0)
         vFilters = []
         if crop is not None:
             vFilters += [ f'crop={crop["w"]}:{crop["h"]}:{crop["x"]}:{crop["y"]}' ]
@@ -140,7 +141,7 @@ class InputFile(ffmpeg.InputFile):
 
                 thread.join()
 
-def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToExtract=120, removeBoarder: bool=True, progress=None) -> None:
+def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToExtract=120, removeBoarder: bool=True, progress=None, serviceId: int | None = None) -> None:
     selectedClips, selectedLen = ptsMap.SelectClips()
     if selectedLen == 0:
         selectedClips, selectedLen = ptsMap.SelectClips(lengthLimit=15)
@@ -153,7 +154,7 @@ def ExtractLogoPipeline(inFile: Path, ptsMap: PtsMap, outFile: Path, maxTimeToEx
             padding = (clip[1] - clip[0] - maxTimeToExtract) / 2
             clip = (padding + clip[0], padding + clip[0] + maxTimeToExtract)
         logger.info(f'Extracting logo from {inFile.name}: {clip} ...')
-        inputFile = InputFile(inFile)
+        inputFile = InputFile(inFile, serviceId=serviceId)
         inputFile.ExtractMeanImagePipe(ptsMap, clip, logoPath, progress=progress)
 
         drawEdges(logoPath, outputPath=outFile, removeBoarder=removeBoarder)

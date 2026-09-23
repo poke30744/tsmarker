@@ -7,11 +7,11 @@ from . import common
 from .pipeline import ExtractLogoPipeline, cv2imread, drawEdges, InputFile
 
 class MarkerMap(common.MarkerMap):
-    def MarkAll(self, videoPath: Path, logoPath: Path=None, maxTimeToExtract=10, progress=None) -> None:
+    def MarkAll(self, videoPath: Path, logoPath: Path=None, maxTimeToExtract=10, progress=None, serviceId: int | None = None) -> None:
         with tempfile.TemporaryDirectory(prefix='logo_MarkerMap_MarkAll_') as tmpFolder:
             if logoPath is None or not logoPath.exists():
                 logoPath = Path(tmpFolder) / videoPath.with_suffix('.logo.png').name
-                ExtractLogoPipeline(inFile=videoPath, ptsMap=self.ptsMap, outFile=logoPath, maxTimeToExtract=999999)
+                ExtractLogoPipeline(inFile=videoPath, ptsMap=self.ptsMap, outFile=logoPath, maxTimeToExtract=999999, serviceId=serviceId)
                 logoEdge = cv2imread(logoPath, 0)
                 logoPath.unlink()
             else:
@@ -22,9 +22,9 @@ class MarkerMap(common.MarkerMap):
             if progress is not None:
                 progress.add_task(tid, len(clips), "Detecting logo")
             for i, clip in enumerate(clips):
-                logoScore = self.ExtractLogoScore(videoPath, clip, maxTimeToExtract, tmpFolder, logoEdge)
+                logoScore = self.ExtractLogoScore(videoPath, clip, maxTimeToExtract, tmpFolder, logoEdge, serviceId)
                 if logoScore <= 0.5:
-                    logoScore = self.ExtractLogoScore(videoPath, clip, 999999, tmpFolder, logoEdge)
+                    logoScore = self.ExtractLogoScore(videoPath, clip, 999999, tmpFolder, logoEdge, serviceId)
                 self.Mark(clip, 'logo', logoScore)
                 if progress is not None:
                     progress.update(tid, i + 1)
@@ -32,7 +32,7 @@ class MarkerMap(common.MarkerMap):
                 progress.done(tid)
         self.Save()
 
-    def ExtractLogoScore(self, videoPath: Path, clip: list, maxTimeToExtract: float, tmpFolder: str, logoEdge) -> float:
+    def ExtractLogoScore(self, videoPath: Path, clip: list, maxTimeToExtract: float, tmpFolder: str, logoEdge, serviceId: int | None = None) -> float:
         if clip[1] - clip[0] > maxTimeToExtract:
             padding = (clip[1] - clip[0] - maxTimeToExtract) / 2
             realClip = (padding + clip[0], padding + clip[0] + maxTimeToExtract)
@@ -40,7 +40,7 @@ class MarkerMap(common.MarkerMap):
             realClip = clip
         clipMeanImagePath = Path(tmpFolder) / Path(ClipToFilename(clip)).with_suffix('.png')
         try:
-            inputFile = InputFile(videoPath)
+            inputFile = InputFile(videoPath, serviceId=serviceId)
             inputFile.ExtractMeanImagePipe(ptsMap=self.ptsMap, clip=realClip, outFile=clipMeanImagePath, progress=None)
         except InvalidTsFormat:
             return 0
