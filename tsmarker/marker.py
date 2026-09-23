@@ -1,6 +1,7 @@
 import json, logging, sys
 from pathlib import Path
 import click
+from rich.console import Console
 from rich.logging import RichHandler
 from . import __version__
 from .ptsmap import PtsMap
@@ -51,9 +52,11 @@ def MarkVideo(videoPath, indexPath, markerPath, methods, progress=None, logoPath
 def cli(ctx, quiet, progress):
     """Mark CMs in MPEG-TS files and manage the marker pipeline."""
     log_level = logging.WARNING if quiet else logging.INFO
+    # Log to stderr: commands like get-program-clips write JSON on stdout, and the
+    # parent (tstriage) parses that stdout as JSON.
     logging.basicConfig(
         level=log_level, format='%(message)s', datefmt='[%X]',
-        handlers=[RichHandler(rich_tracebacks=sys.stderr.isatty())])
+        handlers=[RichHandler(console=Console(stderr=True), rich_tracebacks=sys.stderr.isatty())])
     ctx.ensure_object(dict)
     ctx.obj['progress'] = Progress(use_protocol=progress)
 
