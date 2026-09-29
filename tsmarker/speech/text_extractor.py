@@ -23,6 +23,27 @@ ExtractSubtitlesText = OriginalExtractSubtitlesText
 # file and let the next run resume from the clips already saved in .assgen.
 RETRY_DELAYS = [5, 15]
 
+# Seconds of audio to decode before the clip when its first frames make the
+# decoder desynchronise.  See ExtractAudioText.
+PREROLL = 2.0
+
+
+def ExtractAudioCmd(inputFile: InputFile, videoPath: Path, clip: tuple[float, float],
+                    wavPath: Path, preRoll: float = 0.0) -> list[str]:
+    """ffmpeg command decoding one clip into the 8 kHz mono WAV the recognizer wants.
+
+    With a pre-roll, decoding starts that many seconds earlier and atrim drops
+    those seconds again.  atrim discards frames by timestamp, so the first frame
+    it keeps is the one a plain seek to the clip start would have begun on: the
+    WAV does not depend on the pre-roll.
+    """
+    args = [inputFile.ffmpeg, '-y', '-nostdin', '-loglevel', 'error',
+            '-ss', str(clip[0] - preRoll), '-to', str(clip[1]), '-i', str(videoPath),
+            '-map', inputFile.MapSpec('a', 0)]
+    if preRoll:
+        args += ['-af', f'atrim=start={preRoll}']
+    return args + ['-ac', '1', '-ar', '8000', str(wavPath)]
+
 
 def ExtractAudioText(videoPath: Path, clip: tuple[float, float], serviceId: int | None = None) -> str:
     """Extract text from audio (speech recognition)"""
@@ -30,11 +51,19 @@ def ExtractAudioText(videoPath: Path, clip: tuple[float, float], serviceId: int 
     inputFile = InputFile(videoPath, serviceId=serviceId)
     with tempfile.TemporaryDirectory(prefix="ExtractAudioText_") as tmpFolder:
         wavPath = Path(tmpFolder) / "audio.wav"
-        subprocess.run(
-            [inputFile.ffmpeg, '-y', '-nostdin', '-loglevel', 'error',
-             '-ss', str(clip[0]), '-to', str(clip[1]), '-i', str(videoPath),
-             '-map', inputFile.MapSpec('a', 0), '-ac', '1', '-ar', '8000', str(wavPath)],
-            check=True)
+        try:
+            subprocess.run(ExtractAudioCmd(inputFile, videoPath, clip, wavPath), check=True)
+        except subprocess.CalledProcessError:
+            # A damaged frame at the clip start desynchronises the AAC decoder:
+            # it reports an impossible channel layout and the resampler cannot be
+            # configured for it.  Decoding from before the damage lets the decoder
+            # resync and skip that frame.  A clip at the very head of the file has
+            # no room for a pre-roll, so there the failure stands.
+            preRoll = min(PREROLL, clip[0])
+            if not preRoll:
+                raise
+            logger.warning(f'Clip {clip} failed to decode, retrying {preRoll}s earlier')
+            subprocess.run(ExtractAudioCmd(inputFile, videoPath, clip, wavPath, preRoll), check=True)
         try:
             with sr.AudioFile(str(wavPath)) as source:
                 audio = recognizer.record(source)

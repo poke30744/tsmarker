@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -52,6 +53,45 @@ def test_extract_audio_text_gives_up_after_last_retry(tmp_path):
     with pytest.raises(RuntimeError, match='Speech recognition failed'):
         _extract_audio_text(recognizer, tmp_path)
     assert recognizer.calls == len(text_extractor.RETRY_DELAYS) + 1
+
+
+def _extract_audio_text_ffmpeg_failure(tmpPath: Path, clip: tuple[float, float], calls: list[list[str]]):
+    """Run ExtractAudioText on a clip whose first ffmpeg call fails, recording the commands."""
+    def run(args, **kwargs):
+        calls.append(args)
+        if len(calls) == 1:
+            raise subprocess.CalledProcessError(234, args)
+
+    with patch.object(text_extractor, 'InputFile') as inputFile, \
+         patch.object(text_extractor.subprocess, 'run', side_effect=run), \
+         patch.object(text_extractor.sr, 'AudioFile', MagicMock()), \
+         patch.object(text_extractor.sr, 'Recognizer', return_value=FakeRecognizer()):
+        inputFile.return_value.ffmpeg = 'ffmpeg'
+        inputFile.return_value.MapSpec.return_value = '0:a:0'
+        return text_extractor.ExtractAudioText(tmpPath / 'video.m2ts', clip)
+
+
+def test_extract_audio_text_retries_with_a_preroll(tmp_path):
+    calls = []
+    assert _extract_audio_text_ffmpeg_failure(tmp_path, (100.0, 160.0), calls) == 'テスト'
+    assert calls[0][calls[0].index('-ss') + 1] == '100.0'
+    assert '-af' not in calls[0]
+    assert calls[1][calls[1].index('-ss') + 1] == '98.0'
+    assert calls[1][calls[1].index('-af') + 1] == f'atrim=start={text_extractor.PREROLL}'
+
+
+def test_extract_audio_text_preroll_stops_at_the_file_start(tmp_path):
+    calls = []
+    assert _extract_audio_text_ffmpeg_failure(tmp_path, (0.5, 60.0), calls) == 'テスト'
+    assert calls[1][calls[1].index('-ss') + 1] == '0.0'
+    assert calls[1][calls[1].index('-af') + 1] == 'atrim=start=0.5'
+
+
+def test_extract_audio_text_keeps_the_failure_at_the_file_start(tmp_path):
+    calls = []
+    with pytest.raises(subprocess.CalledProcessError):
+        _extract_audio_text_ffmpeg_failure(tmp_path, (0.0, 60.0), calls)
+    assert len(calls) == 1
 
 
 def _ptsmap(tmpPath: Path) -> PtsMap:
